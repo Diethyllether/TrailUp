@@ -1,0 +1,13 @@
+*.nix
+.ignore
+.devenv/
+devenv.*
+.android/
+.dart_tool/
+android/
+ios/
+macos/
+windows/
+linux/
+web/
+build/
