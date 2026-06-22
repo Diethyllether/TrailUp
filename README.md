@@ -20,11 +20,11 @@ Usuários criam **expedições** em tempo real, encontram grupos para trilhar ju
 
 | Nome | Papel |
 |---|---|
-| Felipe Cornélio Leite | |
-| Miguel Seleme de Azevedo | |
-| Lucca Freitas Leandro | |
-| Pedro da Silva Brum | |
-| Nikolas Ansur Proti Soares| |
-| Miguel Anthony de Oliveira| |
+| Felipe Cornélio Leite | Front End |
+| Nikolas Ansur Proti Soares| Front End |
+| Lucca Freitas Leandro | Banco de Dados/Infra |
+| Pedro da Silva Brum | Banco de Dados/Infra |
+| Miguel Seleme de Azevedo | Back End|
+| Miguel Anthony de Oliveira| Back End |
 
 ---
