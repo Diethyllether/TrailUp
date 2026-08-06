@@ -16,6 +16,7 @@ from controllers.evento_controller import evento_bp
 from controllers.notificacao_controller import notificacao_bp
 from controllers.denuncia_controller import denuncia_bp
 from controllers.historico_controller import historico_bp
+from controllers.relatorio_controller import relatorio_bp
 
 def create_app():
     app = Flask(__name__)
@@ -42,6 +43,7 @@ def create_app():
         notificacao_bp,
         denuncia_bp,
         historico_bp,
+        relatorio_bp,
     ]
     for bp in blueprints:
         app.register_blueprint(bp, url_prefix="/api")
