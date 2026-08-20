@@ -1,107 +1,214 @@
 # TrailUp
 
-> App social de trilhas onde a experiência coletiva é o centro — com estrutura, segurança e sustentabilidade para crescer além do entusiasmo inicial.
+> App social de trilhas para encontrar rotas, organizar expedições, participar de grupos e registrar experiências com segurança.
 
-Usuários criam **expedições** em tempo real, encontram grupos para trilhar juntos, registram checkpoints com fotos georreferenciadas e contam com recursos de segurança integrados — como botão SOS com GPS e check-in automático ao fim da trilha.
-
----
+O projeto é dividido em uma API REST em **Flask** e um aplicativo mobile em **Flutter**, com persistência em **MySQL**.
 
 ## Tecnologias
 
 | Camada | Tecnologia |
 |---|---|
 | Backend | Python + Flask |
+| ORM | Flask-SQLAlchemy |
+| Banco de Dados | MySQL + PyMySQL |
 | Frontend | Dart + Flutter |
-| Banco de Dados | MySQL |
 
----
+## Arquitetura do backend
+
+O backend segue a separação:
+
+```text
+Controller -> Service -> Repository -> Model -> Banco de Dados
+```
+
+Estrutura principal:
+
+```text
+TrailUp/
+├── backend/
+│   ├── controllers/
+│   ├── database/
+│   │   ├── create_database.sql
+│   │   └── procedures_relatorios.sql
+│   ├── models/
+│   ├── repositories/
+│   ├── services/
+│   ├── tests/
+│   ├── utils/
+│   ├── app.py
+│   ├── config.py
+│   ├── init_db.py
+│   └── requirements.txt
+├── frontend/
+└── README.md
+```
+
+## Entidades do backend
+
+O SQLAlchemy registra 15 models:
+
+- Usuario
+- Trilha
+- Avaliacao
+- Favorito
+- Checkpoint
+- Foto
+- MapaOffline
+- Evento
+- EventoTrilha
+- ParticipanteEvento
+- Notificacao
+- Denuncia
+- HistoricoTrilha
+- RegistroRealizado
+- FotoRegistro
+
+## Funcionalidades principais
+
+- cadastro, login e edição de perfil;
+- busca e filtro de trilhas;
+- CRUD de trilhas;
+- avaliações e comentários;
+- favoritos;
+- checkpoints e fotos;
+- mapas offline;
+- criação e participação em eventos;
+- denúncias;
+- notificações;
+- histórico de trilhas e registros GPS;
+- relatórios com `JOIN`, `GROUP BY`, `ORDER BY`, médias e contagens;
+- ranking de usuários;
+- Stored Procedures no MySQL.
+
+## Como executar
+
+### Pré-requisitos
+
+- MySQL
+- Python 3.10+
+- Flutter SDK
+
+### 1. Banco de dados
+
+Entre na pasta do backend:
+
+```bash
+cd backend
+```
+
+Crie o banco `trilhas_db` e todas as tabelas:
+
+```bash
+mysql -u root -p < database/create_database.sql
+```
+
+Para instalar também as Stored Procedures dos relatórios:
+
+```bash
+mysql -u root -p < database/procedures_relatorios.sql
+```
+
+### 2. Backend
+
+Crie e ative o ambiente virtual.
+
+Windows PowerShell:
+
+```powershell
+python -m venv venv
+venv\Scripts\activate
+pip install -r requirements.txt
+$env:DATABASE_URL = "mysql+pymysql://root:SUASENHA@localhost:3306/trilhas_db"
+$env:SECRET_KEY = "troque-esta-chave-em-producao"
+python app.py
+```
+
+Linux/macOS:
+
+```bash
+python -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+export DATABASE_URL="mysql+pymysql://root:SUASENHA@localhost:3306/trilhas_db"
+export SECRET_KEY="troque-esta-chave-em-producao"
+python app.py
+```
+
+A API ficará disponível em:
+
+```text
+http://localhost:5000
+```
+
+Health check:
+
+```text
+GET http://localhost:5000/api/health
+```
+
+Resposta esperada:
+
+```json
+{"status":"ok","service":"TrailUp API"}
+```
+
+### 3. Teste automatizado do backend
+
+O smoke test usa SQLite em memória e não precisa de MySQL:
+
+```bash
+python tests/smoke_test.py
+```
+
+Ele percorre os principais fluxos da API e também valida os relatórios e regras de autorização.
+
+### 4. Frontend
+
+Em outro terminal:
+
+```bash
+cd frontend
+flutter pub get
+flutter run
+```
+
+A URL da API pode ser configurada em:
+
+```text
+frontend/lib/core/config/api_config.dart
+```
+
+Sugestões:
+
+| Ambiente | URL |
+|---|---|
+| Emulador Android | `http://10.0.2.2:5000/api` |
+| iOS/Web/Desktop | `http://127.0.0.1:5000/api` |
+| Dispositivo físico | `http://SEU_IP_LOCAL:5000/api` |
+
+## Relatórios de banco de dados
+
+O backend possui rotas específicas para demonstrar funcionalidades além do CRUD:
+
+```http
+GET /api/relatorios/trilhas
+GET /api/relatorios/usuarios/<id>/favoritos
+GET /api/relatorios/usuarios/<id>/resumo
+GET /api/relatorios/usuarios/ranking
+```
+
+Mais detalhes em:
+
+- `backend/ATIVIDADE_FUNCIONALIDADES_BANCO.md`
+- `backend/README.md`
 
 ## Time
 
 | Nome | Papel |
 |---|---|
 | Felipe Cornélio Leite | Front End |
-| Nikolas Ansur Proti Soares| Front End |
-| Lucca Freitas Leandro | Banco de Dados/Infra |
-| Pedro da Silva Brum | Banco de Dados/Infra |
-| Miguel Seleme de Azevedo | Back End|
-| Miguel Anthony de Oliveira| Back End |
-
----
-
-## Como executar
-
-O projeto é dividido em duas partes: a **API Flask** em `backend/` e o **app Flutter** em `frontend/`. Para usar o app com dados reais, suba primeiro o servidor e depois o cliente mobile.
-
-### Pré-requisitos
-
-- **MySQL** — servidor rodando e acessível
-- **Python 3.10+** — para a API
-- **Flutter SDK** — para o app ([instalação](https://docs.flutter.dev/get-started/install))
-- Emulador Android/iOS ou dispositivo físico configurado (`flutter doctor`)
-
-### 1. Servidor (backend)
-
-```powershell
-cd backend
-python -m venv venv
-venv\Scripts\activate
-pip install -r requirements.txt
-```
-
-Crie o banco e as tabelas (ajuste usuário/senha conforme seu MySQL):
-
-```powershell
-mysql -u root -p < database\create_database.sql
-```
-
-Configure a conexão com o banco. O projeto não usa `python-dotenv`; defina as variáveis no terminal antes de subir a API (veja `backend/.env.example` como referência):
-
-```powershell
-$env:DATABASE_URL = "mysql+pymysql://root:SUASENHA@localhost:3306/trilhas_db"
-$env:SECRET_KEY = "troque-esta-chave-em-producao"
-python app.py
-```
-
-A API sobe em **http://localhost:5000**. Confirme com:
-
-```powershell
-curl http://localhost:5000/api/health
-```
-
-Resposta esperada: `{"status":"ok","service":"TrailUp API"}`.
-
-> **Linux/macOS:** use `source venv/bin/activate` e `export DATABASE_URL=...` no lugar dos comandos PowerShell acima.
-
-Se alterar os models depois do schema inicial, rode `python init_db.py` para criar tabelas/colunas faltantes sem apagar dados existentes.
-
-### 2. Aplicativo (frontend)
-
-Em outro terminal:
-
-```powershell
-cd frontend
-flutter pub get
-flutter run
-```
-
-Antes de rodar contra a API local, ajuste a URL base em `frontend/lib/core/config/api_config.dart`:
-
-| Ambiente | `baseUrl` sugerida |
-|---|---|
-| Emulador Android | `http://10.0.2.2:5000/api` |
-| Simulador iOS / Web / Desktop | `http://127.0.0.1:5000/api` |
-| Dispositivo físico (mesma rede Wi‑Fi) | `http://SEU_IP_LOCAL:5000/api` |
-
-O backend escuta em `0.0.0.0:5000`, então dispositivos na mesma rede conseguem acessá-lo pelo IP da máquina onde a API está rodando.
-
-### Ordem recomendada
-
-1. Subir o MySQL e aplicar `backend/database/create_database.sql`
-2. Iniciar a API com `python app.py` em `backend/`
-3. Configurar `ApiConfig.baseUrl` no Flutter
-4. Executar `flutter run` em `frontend/`
-
-Documentação detalhada da API (endpoints, autenticação, estrutura MVC): [`backend/README.md`](backend/README.md).
-
----
+| Nikolas Ansur Proti Soares | Front End |
+| Lucca Freitas Leandro | Banco de Dados / Infra |
+| Pedro da Silva Brum | Banco de Dados / Infra |
+| Miguel Seleme de Azevedo | Back End |
+| Miguel Anthony de Oliveira | Back End |
