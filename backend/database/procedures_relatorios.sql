@@ -1,4 +1,4 @@
-USE trailup;
+USE trilhas_db;
 
 DROP PROCEDURE IF EXISTS sp_trilhas_por_dificuldade;
 DROP PROCEDURE IF EXISTS sp_resumo_usuario;

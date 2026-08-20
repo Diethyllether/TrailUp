@@ -1,0 +1,89 @@
+name: Project tests
+
+on:
+  pull_request:
+    branches: [master]
+  push:
+    branches: [melhorias-entrega-final]
+
+jobs:
+  backend-validation:
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        working-directory: backend
+        run: pip install -r requirements.txt
+
+      - name: Compile Python files
+        working-directory: backend
+        run: python -m compileall -q .
+
+      - name: Run smoke test with SQLite
+        working-directory: backend
+        run: python tests/smoke_test.py
+
+      - name: Create MySQL schema
+        working-directory: backend
+        run: mysql -h 127.0.0.1 -u root -proot < database/create_database.sql
+
+      - name: Create MySQL procedures
+        working-directory: backend
+        run: mysql -h 127.0.0.1 -u root -proot < database/procedures_relatorios.sql
+
+      - name: Run smoke test with MySQL
+        working-directory: backend
+        env:
+          TRAILUP_TEST_DATABASE_URL: mysql+pymysql://root:root@127.0.0.1:3306/trilhas_db
+        run: python tests/smoke_test.py
+
+      - name: Validate expected database objects
+        run: |
+          mysql -h 127.0.0.1 -u root -proot -N -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='trilhas_db';" | grep -x '15'
+          mysql -h 127.0.0.1 -u root -proot -N -e "SELECT COUNT(*) FROM information_schema.routines WHERE routine_schema='trilhas_db' AND routine_type='PROCEDURE';" | grep -x '3'
+
+  frontend-validation:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install Flutter dependencies
+        working-directory: frontend
+        run: flutter pub get
+
+      - name: Analyze Flutter code
+        working-directory: frontend
+        run: flutter analyze --no-fatal-infos
+
+      - name: Run Flutter tests
+        working-directory: frontend
+        run: flutter test
