@@ -11,6 +11,7 @@ class RelatorioRepository:
             "nome": "t.nome ASC",
         }
         order_by = ordenacoes.get(ordem, ordenacoes["nota"])
+        localizacao_like = f"%{localizacao}%" if localizacao else None
 
         sql = f"""
             SELECT t.idTrilha, t.nome, t.localizacao, t.distancia,
@@ -20,13 +21,16 @@ class RelatorioRepository:
               FROM trilha t
          LEFT JOIN avaliacao a ON a.idTrilha = t.idTrilha
              WHERE (:dificuldade IS NULL OR t.dificuldade = :dificuldade)
-               AND (:localizacao IS NULL OR t.localizacao LIKE CONCAT('%', :localizacao, '%'))
+               AND (:localizacao_like IS NULL OR t.localizacao LIKE :localizacao_like)
           GROUP BY t.idTrilha, t.nome, t.localizacao, t.distancia,
                    t.dificuldade, t.tempoEstimadoMin
           ORDER BY {order_by}
         """
         return [dict(linha._mapping) for linha in db.session.execute(
-            text(sql), {"dificuldade": dificuldade, "localizacao": localizacao}
+            text(sql), {
+                "dificuldade": dificuldade,
+                "localizacao_like": localizacao_like,
+            }
         )]
 
     def favoritos_usuario(self, id_usuario):
