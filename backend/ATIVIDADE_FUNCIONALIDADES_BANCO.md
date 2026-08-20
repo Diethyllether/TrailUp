@@ -36,7 +36,7 @@ Rota protegida:
 GET /api/relatorios/usuarios/<id_usuario>/favoritos
 ```
 
-A consulta utiliza `JOIN` entre `favorito`, `trilha` e `avaliacao`, retornando os dados da trilha e sua média de avaliação.
+A consulta utiliza `JOIN` entre `favorito`, `trilha` e `avaliacao`, retornando os dados da trilha e sua média de avaliação. O usuário autenticado só pode consultar os próprios favoritos.
 
 Header obrigatório:
 
@@ -59,7 +59,7 @@ Retorna:
 - total de avaliações;
 - média das notas dadas.
 
-A consulta combina `usuario`, `historicoTrilha`, `favorito` e `avaliacao`.
+A consulta combina `usuario`, `historicoTrilha`, `favorito` e `avaliacao`. O usuário autenticado só pode consultar o próprio resumo.
 
 ### 4. Ranking de usuários
 
@@ -73,20 +73,35 @@ Ordena os usuários pela quantidade de trilhas concluídas e avaliações realiz
 
 O limite deve estar entre 1 e 100.
 
-## Arquivos criados
+## Arquivos principais
 
 ```text
 backend/controllers/relatorio_controller.py
 backend/services/relatorio_service.py
 backend/repositories/relatorio_repository.py
+backend/database/create_database.sql
 backend/database/procedures_relatorios.sql
 ```
 
-O arquivo `backend/app.py` também foi atualizado para registrar o novo Blueprint.
+O arquivo `backend/app.py` registra o Blueprint dos relatórios.
 
-## Procedures criadas
+## Banco de dados e procedures
 
-O arquivo `database/procedures_relatorios.sql` contém:
+O schema principal usa o banco `trilhas_db`.
+
+Crie o banco e as tabelas:
+
+```bash
+mysql -u root -p < database/create_database.sql
+```
+
+Depois crie as procedures:
+
+```bash
+mysql -u root -p < database/procedures_relatorios.sql
+```
+
+As procedures disponíveis são:
 
 ```text
 sp_trilhas_por_dificuldade
@@ -94,13 +109,7 @@ sp_resumo_usuario
 sp_ranking_usuarios
 ```
 
-Para criar as procedures no MySQL:
-
-```bash
-mysql -u root -p trailup < database/procedures_relatorios.sql
-```
-
-Também é possível copiar e executar o conteúdo do arquivo no MySQL Workbench.
+Também é possível executar os dois arquivos pelo MySQL Workbench.
 
 ## Execução da API
 
@@ -111,14 +120,18 @@ python -m venv venv
 
 No Windows:
 
-```bash
+```powershell
 venv\Scripts\activate
+$env:DATABASE_URL = "mysql+pymysql://root:SUASENHA@localhost:3306/trilhas_db"
+$env:SECRET_KEY = "troque-esta-chave-em-producao"
 ```
 
 No Linux ou macOS:
 
 ```bash
 source venv/bin/activate
+export DATABASE_URL="mysql+pymysql://root:SUASENHA@localhost:3306/trilhas_db"
+export SECRET_KEY="troque-esta-chave-em-producao"
 ```
 
 Depois:
@@ -138,6 +151,14 @@ Teste de funcionamento:
 
 ```http
 GET http://localhost:5000/api/health
+```
+
+## Teste automatizado
+
+O smoke test usa SQLite em memória e cobre os fluxos principais, incluindo os relatórios:
+
+```bash
+python tests/smoke_test.py
 ```
 
 ## Exemplos com curl
