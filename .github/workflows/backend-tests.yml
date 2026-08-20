@@ -1,4 +1,4 @@
-name: Backend tests
+name: Project tests
 
 on:
   pull_request:
@@ -62,3 +62,28 @@ jobs:
         run: |
           mysql -h 127.0.0.1 -u root -proot -N -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='trilhas_db';" | grep -x '15'
           mysql -h 127.0.0.1 -u root -proot -N -e "SELECT COUNT(*) FROM information_schema.routines WHERE routine_schema='trilhas_db' AND routine_type='PROCEDURE';" | grep -x '3'
+
+  frontend-validation:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install Flutter dependencies
+        working-directory: frontend
+        run: flutter pub get
+
+      - name: Analyze Flutter code
+        working-directory: frontend
+        run: flutter analyze
+
+      - name: Run Flutter tests
+        working-directory: frontend
+        run: flutter test
