@@ -1,0 +1,31 @@
+name: Backend tests
+
+on:
+  pull_request:
+    branches: [master]
+  push:
+    branches: [melhorias-entrega-final]
+
+jobs:
+  smoke-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        working-directory: backend
+        run: pip install -r requirements.txt
+
+      - name: Compile Python files
+        working-directory: backend
+        run: python -m compileall -q .
+
+      - name: Run backend smoke test
+        working-directory: backend
+        run: python tests/smoke_test.py
