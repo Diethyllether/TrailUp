@@ -137,6 +137,40 @@ show("anexar foto ao registro", client.post(f"/api/registros/{id_registro}/fotos
 r = show("listar historico da ana", client.get("/api/usuarios/1/historico", headers=headers))
 assert len(r) == 1
 
+r = show(
+    "relatorio de trilhas com filtro",
+    client.get("/api/relatorios/trilhas?dificuldade=DIFICIL&localizacao=Amazonas&ordem=nota"),
+)
+assert len(r) == 1
+assert r[0]["idTrilha"] == id_trilha
+assert float(r[0]["mediaNota"]) == 5.0
+assert r[0]["quantidadeAvaliacoes"] == 1
+
+r = show(
+    "relatorio de favoritos da ana",
+    client.get("/api/relatorios/usuarios/1/favoritos", headers=headers),
+)
+assert len(r) == 1
+assert r[0]["idTrilha"] == id_trilha
+
+r = show(
+    "resumo de atividade da ana",
+    client.get("/api/relatorios/usuarios/1/resumo", headers=headers),
+)
+assert r["trilhasRealizadas"] == 1
+assert r["totalFavoritos"] == 1
+assert r["totalAvaliacoes"] == 1
+
+r = show(
+    "bloquear acesso ao resumo de outro usuario",
+    client.get(f"/api/relatorios/usuarios/{uid}/resumo", headers=headers),
+)
+assert r["erro"]
+
+r = show("ranking de usuarios", client.get("/api/relatorios/usuarios/ranking?limite=2"))
+assert len(r) == 2
+assert r[0]["idUsuario"] == 1
+
 r = show("solicitar recuperacao senha", client.post("/api/recuperar-senha", json={"email": "ana@example.com"}))
 token_reset = r["token_debug"]
 show("redefinir senha", client.post("/api/redefinir-senha", json={"token": token_reset, "novaSenha": "novaSenha456"}))
