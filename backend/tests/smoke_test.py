@@ -1,11 +1,15 @@
 """
-Smoke test: sobe a API inteira com SQLite em memória (não precisa de MySQL
-rodando) e exercita os principais fluxos ponta a ponta. Serve para validar
-a lógica de controllers/services/repositories sem depender de infra.
+Smoke test da API TrailUp.
+
+Por padrão usa SQLite em memória. Para validar o mesmo fluxo contra MySQL,
+defina TRAILUP_TEST_DATABASE_URL antes da execução.
 
 Uso:
     cd backend
     python tests/smoke_test.py
+
+Exemplo MySQL:
+    TRAILUP_TEST_DATABASE_URL=mysql+pymysql://root:senha@127.0.0.1:3306/trilhas_db python tests/smoke_test.py
 """
 import os
 import sys
@@ -13,7 +17,9 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import config as config_module
-config_module.Config.SQLALCHEMY_DATABASE_URI = "sqlite:///:memory:"
+config_module.Config.SQLALCHEMY_DATABASE_URI = os.environ.get(
+    "TRAILUP_TEST_DATABASE_URL", "sqlite:///:memory:"
+)
 
 from app import create_app
 from extensions import db
@@ -34,6 +40,7 @@ r = show("cadastro usuario 1", client.post("/api/usuarios", json={
     "nome": "Ana Trilheira", "email": "ana@example.com", "senha": "senha123"
 }))
 assert r["email"] == "ana@example.com"
+id_ana = r["idUsuario"]
 
 r2 = show("cadastro usuario 2 (líder)", client.post("/api/usuarios", json={
     "nome": "Bruno Guia", "email": "bruno@example.com", "senha": "senha123"
@@ -71,7 +78,7 @@ assert len(r) == 0
 r = show("favoritar trilha", client.post("/api/favoritos", json={"idTrilha": id_trilha}, headers=headers))
 assert r["idTrilha"] == id_trilha
 
-r_ana_fav = show("listar favoritos ana", client.get(f"/api/usuarios/1/favoritos", headers=headers))
+r_ana_fav = show("listar favoritos ana", client.get(f"/api/usuarios/{id_ana}/favoritos", headers=headers))
 assert len(r_ana_fav) == 1
 
 r = show("avaliar trilha", client.post(f"/api/trilhas/{id_trilha}/avaliacoes", json={
@@ -114,7 +121,7 @@ r = show("moderação atualiza status", client.put(f"/api/denuncias/{id_denuncia
 assert r["status"] == "EM_ANALISE"
 
 r = show("criar notificacao", client.post("/api/notificacoes", json={
-    "idUsuario": 1, "mensagem": "Sua sala está quase cheia!", "idEvento": id_evento
+    "idUsuario": id_ana, "mensagem": "Sua sala está quase cheia!", "idEvento": id_evento
 }, headers=headers))
 id_notif = r["idNotificacao"]
 r = show("marcar notificacao como lida", client.put(f"/api/notificacoes/{id_notif}/lida", headers=headers))
@@ -134,7 +141,7 @@ show("anexar foto ao registro", client.post(f"/api/registros/{id_registro}/fotos
     "url": "https://cdn.trailup.com/registros/1.jpg", "legenda": "No checkpoint"
 }, headers=headers))
 
-r = show("listar historico da ana", client.get("/api/usuarios/1/historico", headers=headers))
+r = show("listar historico da ana", client.get(f"/api/usuarios/{id_ana}/historico", headers=headers))
 assert len(r) == 1
 
 r = show(
@@ -148,14 +155,14 @@ assert r[0]["quantidadeAvaliacoes"] == 1
 
 r = show(
     "relatorio de favoritos da ana",
-    client.get("/api/relatorios/usuarios/1/favoritos", headers=headers),
+    client.get(f"/api/relatorios/usuarios/{id_ana}/favoritos", headers=headers),
 )
 assert len(r) == 1
 assert r[0]["idTrilha"] == id_trilha
 
 r = show(
     "resumo de atividade da ana",
-    client.get("/api/relatorios/usuarios/1/resumo", headers=headers),
+    client.get(f"/api/relatorios/usuarios/{id_ana}/resumo", headers=headers),
 )
 assert r["trilhasRealizadas"] == 1
 assert r["totalFavoritos"] == 1
@@ -169,7 +176,7 @@ assert r["erro"]
 
 r = show("ranking de usuarios", client.get("/api/relatorios/usuarios/ranking?limite=2"))
 assert len(r) == 2
-assert r[0]["idUsuario"] == 1
+assert r[0]["idUsuario"] == id_ana
 
 r = show("solicitar recuperacao senha", client.post("/api/recuperar-senha", json={"email": "ana@example.com"}))
 token_reset = r["token_debug"]
