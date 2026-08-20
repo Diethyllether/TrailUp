@@ -24,12 +24,16 @@ def trilhas_ordenadas():
 @relatorio_bp.route("/relatorios/usuarios/<int:id_usuario>/favoritos", methods=["GET"])
 @token_obrigatorio
 def favoritos_usuario(id_usuario, id_usuario_logado=None):
+    if id_usuario_logado != id_usuario:
+        return jsonify({"erro": "você só pode consultar os próprios favoritos"}), 403
     return jsonify(service.favoritos_usuario(id_usuario)), 200
 
 
 @relatorio_bp.route("/relatorios/usuarios/<int:id_usuario>/resumo", methods=["GET"])
 @token_obrigatorio
 def resumo_usuario(id_usuario, id_usuario_logado=None):
+    if id_usuario_logado != id_usuario:
+        return jsonify({"erro": "você só pode consultar o próprio resumo"}), 403
     try:
         return jsonify(service.resumo_usuario(id_usuario)), 200
     except ValueError as e:
