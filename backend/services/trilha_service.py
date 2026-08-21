@@ -2,6 +2,7 @@ import unicodedata
 
 from models.trilha_model import Trilha
 from repositories.trilha_repository import TrilhaRepository
+from services.casos_uso import BuscarTrilhasService, DetalharTrilhaService
 
 VELOCIDADE_POR_DIFICULDADE = {
     "FACIL": 4.0,
@@ -10,9 +11,6 @@ VELOCIDADE_POR_DIFICULDADE = {
 }
 
 def _normalizar_dificuldade(valor):
-    """Aceita variações vindas do app (ex: 'Fácil', 'Moderado', 'difícil')
-    e normaliza para o código canônico salvo no banco (FACIL/MODERADA/DIFICIL).
-    """
     if not valor:
         return valor
     sem_acento = unicodedata.normalize("NFKD", valor).encode("ascii", "ignore").decode()
@@ -24,8 +22,12 @@ def _normalizar_dificuldade(valor):
     return valor
 
 class TrilhaService:
+    """Facade de trilha; busca e detalhe possuem Services de caso de uso."""
+
     def __init__(self):
         self.repository = TrilhaRepository()
+        self.buscar_service = BuscarTrilhasService()
+        self.detalhar_service = DetalharTrilhaService()
 
     @staticmethod
     def calcular_tempo_estimado_min(distancia_km, dificuldade):
@@ -36,21 +38,18 @@ class TrilhaService:
         return round(horas * 60, 1)
 
     def listar_todos(self):
-        return self.repository.listar_todos()
+        return Trilha.listar_todos()
 
     def buscar(self, nome=None, localizacao=None, dificuldade=None, busca=None):
-        return self.repository.buscar(
+        return self.buscar_service.executar(
             nome=nome,
             localizacao=localizacao,
-            dificuldade=_normalizar_dificuldade(dificuldade),
+            dificuldade=dificuldade,
             busca=busca,
         )
 
     def buscar_por_id(self, id_trilha):
-        trilha = self.repository.buscar_por_id(id_trilha)
-        if not trilha:
-            raise ValueError("trilha não encontrada")
-        return trilha
+        return self.detalhar_service.executar(id_trilha)
 
     def criar(self, dados):
         if not dados.get("nome"):
@@ -59,7 +58,6 @@ class TrilhaService:
         tempo_estimado = self.calcular_tempo_estimado_min(
             dados.get("distancia"), dados.get("dificuldade")
         )
-
         trilha = Trilha(
             nome=dados["nome"],
             localizacao=dados.get("localizacao"),
@@ -70,8 +68,7 @@ class TrilhaService:
             imagemUrl=dados.get("imagemUrl"),
             tempoEstimadoMin=tempo_estimado,
         )
-        self.repository.criar(trilha)
-        return trilha
+        return trilha.salvar()
 
     def atualizar(self, id_trilha, dados):
         trilha = self.buscar_por_id(id_trilha)
@@ -86,10 +83,8 @@ class TrilhaService:
         trilha.tempoEstimadoMin = self.calcular_tempo_estimado_min(
             trilha.distancia, trilha.dificuldade
         )
-
-        self.repository.atualizar()
-        return trilha
+        return trilha.atualizar()
 
     def deletar(self, id_trilha):
         trilha = self.buscar_por_id(id_trilha)
-        self.repository.deletar(trilha)
+        trilha.deletar()

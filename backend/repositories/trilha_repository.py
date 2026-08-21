@@ -1,10 +1,9 @@
 from sqlalchemy import or_
 
 from models.trilha_model import Trilha
-from repositories.base_repository import BaseRepository
 
-class TrilhaRepository(BaseRepository):
-    model = Trilha
+class TrilhaRepository:
+    """Consultas com filtros combinados. CRUD simples permanece na Model."""
 
     def buscar(self, nome=None, localizacao=None, dificuldade=None, busca=None):
         query = Trilha.query

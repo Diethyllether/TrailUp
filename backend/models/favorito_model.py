@@ -10,6 +10,23 @@ class Favorito(db.Model):
     idUsuario = db.Column(db.Integer, db.ForeignKey("usuario.idUsuario"), nullable=False)
     idTrilha = db.Column(db.Integer, db.ForeignKey("trilha.idTrilha"), nullable=False)
 
+    def salvar(self):
+        db.session.add(self)
+        db.session.commit()
+        return self
+
+    def deletar(self):
+        db.session.delete(self)
+        db.session.commit()
+
+    @classmethod
+    def listar_todos(cls):
+        return cls.query.all()
+
+    @classmethod
+    def buscar_por_id(cls, id_favorito):
+        return cls.query.get(id_favorito)
+
     def to_dict(self):
         return {
             "idFavorito": self.idFavorito,

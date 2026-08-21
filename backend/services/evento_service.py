@@ -1,35 +1,36 @@
 from models.evento_model import Evento
+from models.usuario_model import Usuario
 from repositories.evento_repository import EventoRepository
-from repositories.usuario_repository import UsuarioRepository
+from services.casos_uso import ListarEventosService, ParticiparEventoService
 
 class EventoService:
+    """Facade de eventos; listagem e participação possuem casos de uso próprios."""
+
     def __init__(self):
         self.repository = EventoRepository()
-        self.usuario_repository = UsuarioRepository()
+        self.listar_eventos_service = ListarEventosService()
+        self.participar_evento_service = ParticiparEventoService()
 
     def listar_todos(self):
-        return self.repository.listar_todos()
+        return self.listar_eventos_service.executar()
 
     def listar_ativos_no_mapa(self):
-        return self.repository.listar_ativos()
+        return self.listar_eventos_service.executar(apenas_mapa=True)
 
     def listar_por_trilha(self, id_trilha):
         return self.repository.listar_por_trilha(id_trilha)
 
     def to_dict_completo(self, evento):
-        """Serializa o evento já incluindo os campos agregados que o app
-        Flutter espera (vindos das tabelas de junção evento_trilha /
-        participante_evento e de um join simples com usuario)."""
         dados = evento.to_dict()
         vinculos = self.repository.listar_trilhas_do_evento(evento.idEvento)
         dados["trilhasIds"] = [v.idTrilha for v in vinculos]
         dados["participantesAtuais"] = self.repository.contar_participantes(evento.idEvento)
-        criador = self.usuario_repository.buscar_por_id(evento.idCriador)
+        criador = Usuario.buscar_por_id(evento.idCriador)
         dados["nomeCriador"] = criador.nome if criador else None
         return dados
 
     def buscar_por_id(self, id_evento):
-        evento = self.repository.buscar_por_id(id_evento)
+        evento = Evento.buscar_por_id(id_evento)
         if not evento:
             raise ValueError("evento não encontrado")
         return evento
@@ -52,7 +53,7 @@ class EventoService:
             longitude=dados.get("longitude"),
             idCriador=id_criador,
         )
-        self.repository.criar(evento)
+        evento.salvar()
 
         for id_trilha in dados.get("trilhas", []):
             self.repository.vincular_trilha(evento.idEvento, id_trilha)
@@ -72,22 +73,16 @@ class EventoService:
             if campo in dados:
                 setattr(evento, campo, dados[campo])
 
-        self.repository.atualizar()
-        return evento
+        return evento.atualizar()
 
     def deletar(self, id_evento, id_usuario):
         evento = self.buscar_por_id(id_evento)
         if evento.idCriador != id_usuario:
             raise PermissionError("apenas o criador pode remover a sala")
-        self.repository.deletar(evento)
+        evento.deletar()
 
     def entrar(self, id_evento, id_usuario):
-        evento = self.buscar_por_id(id_evento)
-        if evento.vagas is not None:
-            ocupadas = self.repository.contar_participantes(id_evento)
-            if ocupadas >= evento.vagas:
-                raise ValueError("sala sem vagas disponíveis")
-        return self.repository.adicionar_participante(id_usuario, id_evento)
+        return self.participar_evento_service.executar(id_evento, id_usuario)
 
     def sair(self, id_evento, id_usuario):
         return self.repository.remover_participante(id_usuario, id_evento)

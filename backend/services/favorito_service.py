@@ -1,28 +1,22 @@
-import datetime
-
-from models.favorito_model import Favorito
-from repositories.favorito_repository import FavoritoRepository
+from services.casos_uso import (
+    AdicionarFavoritoService,
+    ListarFavoritosService,
+    RemoverFavoritoService,
+)
 
 class FavoritoService:
+    """Facade compatível com as rotas antigas, delegando a casos de uso únicos."""
+
     def __init__(self):
-        self.repository = FavoritoRepository()
+        self.listar_service = ListarFavoritosService()
+        self.adicionar_service = AdicionarFavoritoService()
+        self.remover_service = RemoverFavoritoService()
 
     def listar_por_usuario(self, id_usuario):
-        return self.repository.listar_por_usuario(id_usuario)
+        return self.listar_service.executar(id_usuario)
 
     def adicionar(self, id_usuario, id_trilha):
-        existente = self.repository.buscar(id_usuario, id_trilha)
-        if existente:
-            return existente
-
-        favorito = Favorito(
-            idUsuario=id_usuario, idTrilha=id_trilha, dataSalvo=datetime.date.today()
-        )
-        self.repository.criar(favorito)
-        return favorito
+        return self.adicionar_service.executar(id_usuario, id_trilha)
 
     def remover(self, id_usuario, id_trilha):
-        favorito = self.repository.buscar(id_usuario, id_trilha)
-        if not favorito:
-            raise ValueError("trilha não está nos favoritos deste usuário")
-        self.repository.deletar(favorito)
+        return self.remover_service.executar(id_usuario, id_trilha)
