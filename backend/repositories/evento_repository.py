@@ -1,9 +1,8 @@
 from extensions import db
 from models.evento_model import Evento, EventoTrilha, ParticipanteEvento
-from repositories.base_repository import BaseRepository
 
-class EventoRepository(BaseRepository):
-    model = Evento
+class EventoRepository:
+    """Acesso especializado a vínculos, participantes e consultas de eventos."""
 
     def listar_ativos(self):
         return Evento.query.filter(
@@ -20,12 +19,16 @@ class EventoRepository(BaseRepository):
         return EventoTrilha.query.filter_by(idEvento=id_evento).all()
 
     def listar_por_trilha(self, id_trilha):
-        """Eventos vinculados a uma trilha específica (via evento_trilha)."""
         return (
             Evento.query.join(EventoTrilha, EventoTrilha.idEvento == Evento.idEvento)
             .filter(EventoTrilha.idTrilha == id_trilha)
             .all()
         )
+
+    def buscar_participante(self, id_usuario, id_evento):
+        return ParticipanteEvento.query.filter_by(
+            idUsuario=id_usuario, idEvento=id_evento
+        ).first()
 
     def adicionar_participante(self, id_usuario, id_evento):
         participante = ParticipanteEvento(idUsuario=id_usuario, idEvento=id_evento)
@@ -34,9 +37,7 @@ class EventoRepository(BaseRepository):
         return participante
 
     def remover_participante(self, id_usuario, id_evento):
-        participante = ParticipanteEvento.query.filter_by(
-            idUsuario=id_usuario, idEvento=id_evento
-        ).first()
+        participante = self.buscar_participante(id_usuario, id_evento)
         if participante:
             db.session.delete(participante)
             db.session.commit()

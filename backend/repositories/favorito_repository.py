@@ -1,8 +1,7 @@
 from models.favorito_model import Favorito
-from repositories.base_repository import BaseRepository
 
-class FavoritoRepository(BaseRepository):
-    model = Favorito
+class FavoritoRepository:
+    """Consultas por chave composta/usuário. Persistência simples fica na Model."""
 
     def listar_por_usuario(self, id_usuario):
         return Favorito.query.filter_by(idUsuario=id_usuario).all()

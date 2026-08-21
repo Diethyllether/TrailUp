@@ -15,6 +15,27 @@ class Evento(db.Model):
     longitude = db.Column(db.Float, nullable=True)
     idCriador = db.Column(db.Integer, db.ForeignKey("usuario.idUsuario"), nullable=False)
 
+    def salvar(self):
+        db.session.add(self)
+        db.session.commit()
+        return self
+
+    def atualizar(self):
+        db.session.commit()
+        return self
+
+    def deletar(self):
+        db.session.delete(self)
+        db.session.commit()
+
+    @classmethod
+    def listar_todos(cls):
+        return cls.query.all()
+
+    @classmethod
+    def buscar_por_id(cls, id_evento):
+        return cls.query.get(id_evento)
+
     def to_dict(self):
         return {
             "idEvento": self.idEvento,

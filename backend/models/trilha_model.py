@@ -13,6 +13,27 @@ class Trilha(db.Model):
     imagemUrl = db.Column(db.String(255), nullable=True)
     tempoEstimadoMin = db.Column(db.Float, nullable=True)
 
+    def salvar(self):
+        db.session.add(self)
+        db.session.commit()
+        return self
+
+    def atualizar(self):
+        db.session.commit()
+        return self
+
+    def deletar(self):
+        db.session.delete(self)
+        db.session.commit()
+
+    @classmethod
+    def listar_todos(cls):
+        return cls.query.all()
+
+    @classmethod
+    def buscar_por_id(cls, id_trilha):
+        return cls.query.get(id_trilha)
+
     def to_dict(self):
         return {
             "idTrilha": self.idTrilha,

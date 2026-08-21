@@ -15,11 +15,13 @@ O projeto é dividido em uma API REST em **Flask** e um aplicativo mobile em **F
 
 ## Arquitetura do backend
 
-O backend segue a separação:
+As funcionalidades avaliadas seguem o fluxo obrigatório:
 
 ```text
-Controller -> Service -> Repository -> Model -> Banco de Dados
+Interface/Tela -> API Flask -> Controller (classe) -> Service de caso de uso -> Model/Repository -> Banco de Dados
 ```
+
+A persistência CRUD simples fica nas próprias Models. Repositories são usados nas funcionalidades avaliadas apenas para consultas específicas, filtros, relacionamentos e agregações.
 
 Estrutura principal:
 
@@ -33,6 +35,7 @@ TrailUp/
 │   ├── models/
 │   ├── repositories/
 │   ├── services/
+│   │   └── casos_uso/
 │   ├── tests/
 │   ├── utils/
 │   ├── app.py
@@ -63,22 +66,22 @@ O SQLAlchemy registra 15 models:
 - RegistroRealizado
 - FotoRegistro
 
-## Funcionalidades principais
+## Funcionalidades Implementadas
 
-- cadastro, login e edição de perfil;
-- busca e filtro de trilhas;
-- CRUD de trilhas;
-- avaliações e comentários;
-- favoritos;
-- checkpoints e fotos;
-- mapas offline;
-- criação e participação em eventos;
-- denúncias;
-- notificações;
-- histórico de trilhas e registros GPS;
-- relatórios com `JOIN`, `GROUP BY`, `ORDER BY`, médias e contagens;
-- ranking de usuários;
-- Stored Procedures no MySQL.
+As 10 funcionalidades abaixo são as selecionadas para a entrega desta etapa e possuem fluxo entre interface, API, Controller, Service e persistência:
+
+1. Cadastrar usuário
+2. Realizar login
+3. Atualizar perfil
+4. Buscar e filtrar trilhas
+5. Visualizar detalhes de uma trilha
+6. Listar trilhas favoritas do usuário
+7. Adicionar trilha aos favoritos
+8. Remover trilha dos favoritos
+9. Listar eventos/expedições
+10. Participar de um evento/expedição
+
+O projeto também contém funcionalidades adicionais, como CRUD de trilhas, avaliações, checkpoints, mapas offline, denúncias, notificações, histórico, relatórios, ranking e Stored Procedures.
 
 ## Como executar
 
