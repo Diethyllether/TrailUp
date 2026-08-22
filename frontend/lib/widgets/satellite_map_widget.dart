@@ -29,6 +29,7 @@ class SatelliteMapWidget extends StatefulWidget {
   final bool interactive;
   final bool fitBounds;
   final EdgeInsets fitPadding;
+  final String? offlineTileTemplate;
 
   const SatelliteMapWidget({
     super.key,
@@ -40,6 +41,7 @@ class SatelliteMapWidget extends StatefulWidget {
     this.interactive = true,
     this.fitBounds = true,
     this.fitPadding = const EdgeInsets.all(40),
+    this.offlineTileTemplate,
   });
 
   @override
@@ -48,7 +50,7 @@ class SatelliteMapWidget extends StatefulWidget {
 
 class _SatelliteMapWidgetState extends State<SatelliteMapWidget> {
   final _mapController = MapController();
-  final _tileProvider = NetworkTileProvider();
+  final _networkTileProvider = NetworkTileProvider();
 
   @override
   void initState() {
@@ -61,7 +63,8 @@ class _SatelliteMapWidgetState extends State<SatelliteMapWidget> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.pins != widget.pins ||
         oldWidget.route != widget.route ||
-        oldWidget.center != widget.center) {
+        oldWidget.center != widget.center ||
+        oldWidget.offlineTileTemplate != widget.offlineTileTemplate) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _fitToContent());
     }
   }
@@ -93,26 +96,29 @@ class _SatelliteMapWidgetState extends State<SatelliteMapWidget> {
   Widget build(BuildContext context) {
     final initialCenter = widget.center ?? MapConfig.defaultCenter;
     final initialZoom = widget.zoom ?? MapConfig.defaultZoom;
+    final offline = widget.offlineTileTemplate != null;
 
     return FlutterMap(
       mapController: _mapController,
       options: MapOptions(
         initialCenter: initialCenter,
         initialZoom: initialZoom,
-        minZoom: 2,
-        maxZoom: 19,
+        minZoom: offline ? 12 : 2,
+        maxZoom: offline ? 16 : 19,
         interactionOptions: InteractionOptions(
           flags: widget.interactive ? InteractiveFlag.all : InteractiveFlag.none,
         ),
       ),
       children: [
         TileLayer(
-          urlTemplate: widget.satellite ? MapConfig.satelliteTileUrl : MapConfig.streetTileUrl,
-          userAgentPackageName: MapConfig.userAgent,
-          minZoom: 2,
-          maxZoom: 19,
-          maxNativeZoom: 19,
-          tileProvider: _tileProvider,
+          urlTemplate: offline
+              ? widget.offlineTileTemplate!
+              : (widget.satellite ? MapConfig.satelliteTileUrl : MapConfig.streetTileUrl),
+          userAgentPackageName: offline ? null : MapConfig.userAgent,
+          minZoom: offline ? 12 : 2,
+          maxZoom: offline ? 16 : 19,
+          maxNativeZoom: offline ? 16 : 19,
+          tileProvider: offline ? FileTileProvider() : _networkTileProvider,
           errorTileCallback: (tile, error, stackTrace) {
             debugPrint('TrailUp: falha ao carregar tile ${tile.coordinates}: $error');
           },
@@ -140,7 +146,7 @@ class _SatelliteMapWidgetState extends State<SatelliteMapWidget> {
           alignment: AttributionAlignment.bottomRight,
           attributions: [
             TextSourceAttribution(
-              widget.satellite ? 'Esri World Imagery' : 'OpenStreetMap contributors',
+              offline || widget.satellite ? 'Esri World Imagery' : 'OpenStreetMap contributors',
               onTap: () {},
             ),
           ],
