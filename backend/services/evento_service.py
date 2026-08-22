@@ -1,7 +1,9 @@
 from models.evento_model import Evento
 from models.usuario_model import Usuario
+from models.checkpoint_model import Checkpoint
 from repositories.evento_repository import EventoRepository
 from services.casos_uso import ListarEventosService, ParticiparEventoService
+
 
 class EventoService:
     """Facade de eventos; listagem e participação possuem casos de uso próprios."""
@@ -35,11 +37,45 @@ class EventoService:
             raise ValueError("evento não encontrado")
         return evento
 
+    @staticmethod
+    def _coordenadas_da_trilha(ids_trilha):
+        """Usa o primeiro checkpoint GPS válido da primeira trilha vinculada."""
+        for id_trilha in ids_trilha or []:
+            checkpoints = Checkpoint.query.filter_by(idTrilha=id_trilha).order_by(
+                Checkpoint.idCheckpoint.asc()
+            ).all()
+            for checkpoint in checkpoints:
+                lat = checkpoint.latitude
+                lng = checkpoint.longitude
+                if (
+                    lat is not None
+                    and lng is not None
+                    and -90 <= lat <= 90
+                    and -180 <= lng <= 180
+                    and not (lat == 0 and lng == 0)
+                ):
+                    return float(lat), float(lng)
+        return None, None
+
     def criar(self, id_criador, dados):
         if not dados.get("titulo") or not dados.get("tipo"):
             raise ValueError("titulo e tipo são obrigatórios")
         if dados["tipo"] not in ("INDIVIDUAL", "GRUPO"):
             raise ValueError("tipo deve ser INDIVIDUAL ou GRUPO")
+
+        latitude = dados.get("latitude")
+        longitude = dados.get("longitude")
+        ids_trilha = dados.get("trilhas", [])
+
+        # Se o cliente não informou uma posição própria para a expedição,
+        # ancora o evento na rota real da trilha vinculada para que apareça
+        # corretamente no mapa.
+        if latitude is None or longitude is None:
+            latitude_trilha, longitude_trilha = self._coordenadas_da_trilha(ids_trilha)
+            if latitude is None:
+                latitude = latitude_trilha
+            if longitude is None:
+                longitude = longitude_trilha
 
         evento = Evento(
             titulo=dados["titulo"],
@@ -49,13 +85,13 @@ class EventoService:
             imediata=bool(dados.get("imediata", False)),
             vagas=dados.get("vagas"),
             tipo=dados["tipo"],
-            latitude=dados.get("latitude"),
-            longitude=dados.get("longitude"),
+            latitude=latitude,
+            longitude=longitude,
             idCriador=id_criador,
         )
         evento.salvar()
 
-        for id_trilha in dados.get("trilhas", []):
+        for id_trilha in ids_trilha:
             self.repository.vincular_trilha(evento.idEvento, id_trilha)
 
         self.repository.adicionar_participante(id_criador, evento.idEvento)
