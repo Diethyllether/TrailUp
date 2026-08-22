@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
 import '../../core/theme/app_theme.dart';
@@ -17,21 +19,43 @@ class MapScreen extends StatefulWidget {
   State<MapScreen> createState() => _MapScreenState();
 }
 
-class _MapScreenState extends State<MapScreen> {
+class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
   late Future<List<Evento>> _eventosFuture;
   final _buscaController = TextEditingController();
   final _listScrollController = ScrollController();
+  Timer? _refreshTimer;
   bool _satellite = true;
   int? _eventoSelecionado;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _eventosFuture = EventoService.listarProximos(apenasNoMapa: true);
+    _refreshTimer = Timer.periodic(
+      const Duration(seconds: 5),
+      (_) => _recarregarEventos(),
+    );
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _recarregarEventos();
+    }
+  }
+
+  void _recarregarEventos() {
+    if (!mounted) return;
+    setState(() {
+      _eventosFuture = EventoService.listarProximos(apenasNoMapa: true);
+    });
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _refreshTimer?.cancel();
     _buscaController.dispose();
     _listScrollController.dispose();
     super.dispose();
@@ -94,6 +118,15 @@ class _MapScreenState extends State<MapScreen> {
         .toList();
   }
 
+  String _assinaturaDosEventos(List<Evento> eventos) {
+    final partes = eventos
+        .where((e) => e.latitude != null && e.longitude != null)
+        .map((e) => '${e.idEvento}:${e.latitude!.toStringAsFixed(6)}:${e.longitude!.toStringAsFixed(6)}')
+        .toList()
+      ..sort();
+    return partes.join('|');
+  }
+
   void _scrollParaEvento(int index) {
     if (index < 0) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -127,12 +160,13 @@ class _MapScreenState extends State<MapScreen> {
       builder: (context, snapshot) {
         final eventos = _filtrarEventos(snapshot.data ?? []);
         final pins = _pinsDeEventos(eventos);
+        final assinatura = _assinaturaDosEventos(eventos);
 
         return Stack(
           children: [
             Positioned.fill(
               child: SatelliteMapWidget(
-                key: ValueKey('map-${_satellite}-${pins.length}-$_eventoSelecionado'),
+                key: ValueKey('map-${_satellite}-$_eventoSelecionado-$assinatura'),
                 pins: pins,
                 satellite: _satellite,
                 fitBounds: pins.isNotEmpty,
@@ -177,6 +211,19 @@ class _MapScreenState extends State<MapScreen> {
                     ),
                   ),
                   const SizedBox(width: 10),
+                  GestureDetector(
+                    onTap: _recarregarEventos,
+                    child: Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: AppColors.bgDark.withOpacity(0.92),
+                        borderRadius: BorderRadius.circular(22),
+                      ),
+                      child: const Icon(Icons.refresh, color: AppColors.greenLight, size: 20),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
                   _MapToggleButton(
                     satellite: _satellite,
                     onToggle: () => setState(() => _satellite = !_satellite),
@@ -194,7 +241,7 @@ class _MapScreenState extends State<MapScreen> {
                     color: AppColors.bgCard,
                     child: Padding(
                       padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      child: Text('Carregando expedições…', style: TextStyle(color: AppColors.textDim, fontSize: 12)),
+                      child: Text('Atualizando expedições…', style: TextStyle(color: AppColors.textDim, fontSize: 12)),
                     ),
                   ),
                 ),
@@ -252,7 +299,7 @@ class _MapScreenState extends State<MapScreen> {
             child: FutureBuilder<List<Evento>>(
               future: _eventosFuture,
               builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
+                if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
                   return const Center(child: CircularProgressIndicator(color: AppColors.greenLight));
                 }
                 if (snapshot.hasError) {
@@ -286,6 +333,7 @@ class _MapScreenState extends State<MapScreen> {
                         onParticipar: () async {
                           if (e.idEvento == null || widget.usuario.idUsuario == null) return;
                           await EventoService.participar(e.idEvento!, widget.usuario.idUsuario!);
+                          _recarregarEventos();
                           if (mounted) {
                             ScaffoldMessenger.of(context)
                                 .showSnackBar(const SnackBar(content: Text('Você entrou na expedição!')));
