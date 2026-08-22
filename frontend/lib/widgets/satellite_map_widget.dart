@@ -114,7 +114,7 @@ class _SatelliteMapWidgetState extends State<SatelliteMapWidget> {
           urlTemplate: offline
               ? widget.offlineTileTemplate!
               : (widget.satellite ? MapConfig.satelliteTileUrl : MapConfig.streetTileUrl),
-          userAgentPackageName: offline ? null : MapConfig.userAgent,
+          userAgentPackageName: MapConfig.userAgent,
           minZoom: offline ? 12 : 2,
           maxZoom: offline ? 16 : 19,
           maxNativeZoom: offline ? 16 : 19,
