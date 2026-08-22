@@ -1,9 +1,13 @@
+import 'dart:async';
+
 import '../models/usuario.dart';
 import 'api_client.dart';
 import 'session_service.dart';
 
 class AuthService {
   AuthService._();
+
+  static bool _loggedOutExplicitly = false;
 
   static Future<Usuario> login(String email, String senha) async {
     final data = await ApiClient.post('/login', {'email': email, 'senha': senha});
@@ -14,11 +18,14 @@ class AuthService {
 
     final usuario = Usuario.fromJson(data['usuario'] as Map<String, dynamic>);
     ApiClient.authToken = token;
+    _loggedOutExplicitly = false;
     await SessionService.saveSession(token: token, usuario: usuario);
     return usuario;
   }
 
   static Future<Usuario?> restoreSession() async {
+    if (_loggedOutExplicitly) return null;
+
     final session = await SessionService.restoreSession();
     if (session == null) return null;
 
@@ -42,8 +49,9 @@ class AuthService {
     return atualizado;
   }
 
-  static Future<void> logout() async {
+  static void logout() {
     ApiClient.authToken = null;
-    await SessionService.clear();
+    _loggedOutExplicitly = true;
+    unawaited(SessionService.clear());
   }
 }
