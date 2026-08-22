@@ -6,10 +6,14 @@ import '../../core/theme/app_theme.dart';
 import '../../models/usuario.dart';
 import '../../models/evento.dart';
 import '../../models/denuncia.dart';
+import '../../models/checkpoint.dart';
 import '../../services/evento_service.dart';
 import '../../services/denuncia_service.dart';
+import '../../services/checkpoint_service.dart';
+import '../../services/trilha_service.dart';
 import '../../widgets/evento_card.dart';
 import '../../widgets/satellite_map_widget.dart';
+import '../../widgets/trail_map_widget.dart';
 
 class MapScreen extends StatefulWidget {
   final Usuario usuario;
@@ -26,6 +30,10 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
   Timer? _refreshTimer;
   bool _satellite = true;
   int? _eventoSelecionado;
+
+  Evento? _expedicaoAtiva;
+  Future<List<Checkpoint>>? _checkpointsExpedicaoFuture;
+  String? _localizacaoExpedicao;
 
   @override
   void initState() {
@@ -50,6 +58,44 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
     setState(() {
       _eventosFuture = EventoService.listarProximos(apenasNoMapa: true);
     });
+  }
+
+  Future<void> _ativarExpedicao(Evento evento) async {
+    final idsTrilhas = evento.trilhasIds ?? const <int>[];
+    if (idsTrilhas.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Esta expedição não possui uma trilha vinculada.')),
+        );
+      }
+      return;
+    }
+
+    final idTrilha = idsTrilhas.first;
+    setState(() {
+      _expedicaoAtiva = evento;
+      _eventoSelecionado = evento.idEvento;
+      _checkpointsExpedicaoFuture = CheckpointService.listarPorTrilha(idTrilha);
+      _localizacaoExpedicao = null;
+    });
+
+    try {
+      final trilha = await TrilhaService.buscarPorId(idTrilha);
+      if (mounted && _expedicaoAtiva?.idEvento == evento.idEvento) {
+        setState(() => _localizacaoExpedicao = trilha.localizacao);
+      }
+    } catch (_) {
+      // O mapa continua funcional mesmo sem o nome textual da localização.
+    }
+  }
+
+  void _sairDoFocoDaExpedicao() {
+    setState(() {
+      _expedicaoAtiva = null;
+      _checkpointsExpedicaoFuture = null;
+      _localizacaoExpedicao = null;
+    });
+    _recarregarEventos();
   }
 
   @override
@@ -155,6 +201,10 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
   }
 
   Widget _buildMapa() {
+    if (_expedicaoAtiva != null && _checkpointsExpedicaoFuture != null) {
+      return _buildMapaExpedicaoAtiva();
+    }
+
     return FutureBuilder<List<Evento>>(
       future: _eventosFuture,
       builder: (context, snapshot) {
@@ -252,6 +302,77 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
     );
   }
 
+  Widget _buildMapaExpedicaoAtiva() {
+    final evento = _expedicaoAtiva!;
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: FutureBuilder<List<Checkpoint>>(
+            future: _checkpointsExpedicaoFuture,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator(color: AppColors.greenLight));
+              }
+              if (snapshot.hasError) {
+                return const Center(
+                  child: Text('Não foi possível carregar os checkpoints da expedição.',
+                      style: TextStyle(color: AppColors.textDim)),
+                );
+              }
+              return TrailMapWidget(
+                key: ValueKey('expedicao-${evento.idEvento}-${snapshot.data?.length ?? 0}'),
+                checkpoints: snapshot.data ?? const <Checkpoint>[],
+                localizacao: _localizacaoExpedicao,
+              );
+            },
+          ),
+        ),
+        Positioned(
+          left: 16,
+          right: 16,
+          top: 12,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: AppColors.bgDark.withOpacity(0.94),
+              borderRadius: BorderRadius.circular(14),
+              boxShadow: [
+                BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 2)),
+              ],
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.navigation, color: AppColors.greenLight, size: 20),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text('Expedição ativa',
+                          style: TextStyle(color: AppColors.greenLight, fontSize: 10, fontWeight: FontWeight.bold)),
+                      Text(
+                        evento.titulo,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Voltar ao mapa geral',
+                  onPressed: _sairDoFocoDaExpedicao,
+                  icon: const Icon(Icons.close, color: AppColors.textDim),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildDrawer() {
     return Container(
       width: double.infinity,
@@ -279,18 +400,19 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
-                  'Expedições Abertas Perto',
-                  style: TextStyle(color: AppColors.textPrimary, fontSize: 15, fontWeight: FontWeight.bold),
+                Text(
+                  _expedicaoAtiva != null ? 'Expedição em andamento' : 'Expedições Abertas Perto',
+                  style: const TextStyle(color: AppColors.textPrimary, fontSize: 15, fontWeight: FontWeight.bold),
                 ),
-                FutureBuilder<List<Evento>>(
-                  future: _eventosFuture,
-                  builder: (context, snapshot) {
-                    final count = _filtrarEventos(snapshot.data ?? []).length;
-                    return Text('$count encontradas',
-                        style: const TextStyle(color: AppColors.greenLight, fontSize: 11));
-                  },
-                ),
+                if (_expedicaoAtiva == null)
+                  FutureBuilder<List<Evento>>(
+                    future: _eventosFuture,
+                    builder: (context, snapshot) {
+                      final count = _filtrarEventos(snapshot.data ?? []).length;
+                      return Text('$count encontradas',
+                          style: const TextStyle(color: AppColors.greenLight, fontSize: 11));
+                    },
+                  ),
               ],
             ),
           ),
@@ -307,7 +429,12 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
                     child: Text('Não foi possível carregar expedições.', style: TextStyle(color: AppColors.textDim)),
                   );
                 }
-                final eventos = _filtrarEventos(snapshot.data ?? []);
+
+                final todos = _filtrarEventos(snapshot.data ?? []);
+                final eventos = _expedicaoAtiva == null
+                    ? todos
+                    : todos.where((e) => e.idEvento == _expedicaoAtiva!.idEvento).toList();
+
                 if (eventos.isEmpty) {
                   return const Center(
                     child: Text('Nenhuma expedição aberta encontrada.', style: TextStyle(color: AppColors.textDim)),
@@ -330,15 +457,19 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
                       margin: const EdgeInsets.only(bottom: 4),
                       child: EventoCard(
                         evento: e,
-                        onParticipar: () async {
-                          if (e.idEvento == null || widget.usuario.idUsuario == null) return;
-                          await EventoService.participar(e.idEvento!, widget.usuario.idUsuario!);
-                          _recarregarEventos();
-                          if (mounted) {
-                            ScaffoldMessenger.of(context)
-                                .showSnackBar(const SnackBar(content: Text('Você entrou na expedição!')));
-                          }
-                        },
+                        onParticipar: _expedicaoAtiva != null
+                            ? null
+                            : () async {
+                                if (e.idEvento == null || widget.usuario.idUsuario == null) return;
+                                await EventoService.participar(e.idEvento!, widget.usuario.idUsuario!);
+                                await _ativarExpedicao(e);
+                                _recarregarEventos();
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('Você entrou na expedição. Mapa focado na trilha.')),
+                                  );
+                                }
+                              },
                         onReportar: () => _abrirDenunciaDialog(e),
                       ),
                     );
