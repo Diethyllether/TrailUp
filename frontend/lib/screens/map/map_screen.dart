@@ -27,7 +27,7 @@ class _MapScreenState extends State<MapScreen> {
   @override
   void initState() {
     super.initState();
-    _eventosFuture = EventoService.listarProximos();
+    _eventosFuture = EventoService.listarProximos(apenasNoMapa: true);
   }
 
   @override
