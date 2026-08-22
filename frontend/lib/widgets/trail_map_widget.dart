@@ -5,6 +5,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import '../core/theme/app_theme.dart';
 import '../models/checkpoint.dart';
+import '../services/offline_map_service.dart';
 import 'satellite_map_widget.dart';
 
 class TrailMapWidget extends StatefulWidget {
@@ -27,17 +28,47 @@ class _TrailMapWidgetState extends State<TrailMapWidget> {
   StreamSubscription<Position>? _positionSubscription;
   LatLng? _currentPosition;
   String? _locationError;
+  String? _detectedOfflineTileTemplate;
 
   @override
   void initState() {
     super.initState();
     _startLocationTracking();
+    _loadOfflineMap();
+  }
+
+  @override
+  void didUpdateWidget(TrailMapWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _loadOfflineMap();
   }
 
   @override
   void dispose() {
     _positionSubscription?.cancel();
     super.dispose();
+  }
+
+  Future<void> _loadOfflineMap() async {
+    if (widget.offlineTileTemplate != null) {
+      if (mounted && _detectedOfflineTileTemplate != widget.offlineTileTemplate) {
+        setState(() => _detectedOfflineTileTemplate = widget.offlineTileTemplate);
+      }
+      return;
+    }
+
+    if (widget.checkpoints.isEmpty) {
+      if (mounted && _detectedOfflineTileTemplate != null) {
+        setState(() => _detectedOfflineTileTemplate = null);
+      }
+      return;
+    }
+
+    final idTrilha = widget.checkpoints.first.idTrilha;
+    final template = await OfflineMapService.localTileTemplate(idTrilha);
+    if (mounted && template != _detectedOfflineTileTemplate) {
+      setState(() => _detectedOfflineTileTemplate = template);
+    }
   }
 
   Future<void> _startLocationTracking() async {
@@ -110,7 +141,8 @@ class _TrailMapWidgetState extends State<TrailMapWidget> {
   Widget build(BuildContext context) {
     final route = _route;
     final pins = _checkpointPins(route);
-    final offline = widget.offlineTileTemplate != null;
+    final offlineTemplate = widget.offlineTileTemplate ?? _detectedOfflineTileTemplate;
+    final offline = offlineTemplate != null;
 
     if (_currentPosition != null) {
       pins.add(
@@ -134,13 +166,14 @@ class _TrailMapWidgetState extends State<TrailMapWidget> {
         children: [
           if (route.isNotEmpty)
             SatelliteMapWidget(
+              key: ValueKey('trail-map-${offlineTemplate ?? 'online'}'),
               route: route,
               pins: pins,
               center: route.first,
               zoom: 15,
               fitBounds: route.length > 1,
               fitPadding: const EdgeInsets.fromLTRB(42, 64, 42, 48),
-              offlineTileTemplate: widget.offlineTileTemplate,
+              offlineTileTemplate: offlineTemplate,
             )
           else
             Container(
