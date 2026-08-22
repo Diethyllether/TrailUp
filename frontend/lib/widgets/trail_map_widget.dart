@@ -10,8 +10,14 @@ import 'satellite_map_widget.dart';
 class TrailMapWidget extends StatefulWidget {
   final List<Checkpoint> checkpoints;
   final String? localizacao;
+  final String? offlineTileTemplate;
 
-  const TrailMapWidget({super.key, required this.checkpoints, this.localizacao});
+  const TrailMapWidget({
+    super.key,
+    required this.checkpoints,
+    this.localizacao,
+    this.offlineTileTemplate,
+  });
 
   @override
   State<TrailMapWidget> createState() => _TrailMapWidgetState();
@@ -104,6 +110,7 @@ class _TrailMapWidgetState extends State<TrailMapWidget> {
   Widget build(BuildContext context) {
     final route = _route;
     final pins = _checkpointPins(route);
+    final offline = widget.offlineTileTemplate != null;
 
     if (_currentPosition != null) {
       pins.add(
@@ -133,6 +140,7 @@ class _TrailMapWidgetState extends State<TrailMapWidget> {
               zoom: 15,
               fitBounds: route.length > 1,
               fitPadding: const EdgeInsets.fromLTRB(42, 64, 42, 48),
+              offlineTileTemplate: widget.offlineTileTemplate,
             )
           else
             Container(
@@ -169,6 +177,27 @@ class _TrailMapWidgetState extends State<TrailMapWidget> {
               ),
             ),
           ),
+          if (offline)
+            Positioned(
+              right: 10,
+              top: 10,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+                decoration: BoxDecoration(
+                  color: AppColors.bgDark.withOpacity(0.92),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.offline_pin, size: 13, color: AppColors.greenLight),
+                    SizedBox(width: 5),
+                    Text('Mapa offline',
+                        style: TextStyle(color: AppColors.greenLight, fontSize: 10, fontWeight: FontWeight.bold)),
+                  ],
+                ),
+              ),
+            ),
           if (widget.localizacao != null && widget.localizacao!.isNotEmpty)
             Positioned(
               left: 10,
