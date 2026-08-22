@@ -49,12 +49,12 @@ class OfflineMapService {
   static int _tileX(double longitude, int zoom) {
     final n = 1 << zoom;
     final x = (((longitude + 180.0) / 360.0) * n).floor();
-    return x.clamp(0, n - 1);
+    return x.clamp(0, n - 1).toInt();
   }
 
   static int _tileY(double latitude, int zoom) {
     final n = 1 << zoom;
-    final lat = latitude.clamp(-85.05112878, 85.05112878);
+    final lat = latitude.clamp(-85.05112878, 85.05112878).toDouble();
     final latRad = lat * math.pi / 180.0;
     final y = ((1.0 -
                 math.log(math.tan(latRad) + 1 / math.cos(latRad)) /
@@ -62,7 +62,7 @@ class OfflineMapService {
             2.0 *
             n)
         .floor();
-    return y.clamp(0, n - 1);
+    return y.clamp(0, n - 1).toInt();
   }
 
   static List<(int, int, int)> _tilesForBounds(
@@ -79,10 +79,10 @@ class OfflineMapService {
     final tiles = <(int, int, int)>[];
     for (var z = _minZoom; z <= maxZoom; z++) {
       final n = 1 << z;
-      final x0 = (_tileX(minLng, z) - 1).clamp(0, n - 1);
-      final x1 = (_tileX(maxLng, z) + 1).clamp(0, n - 1);
-      final y0 = (_tileY(maxLat, z) - 1).clamp(0, n - 1);
-      final y1 = (_tileY(minLat, z) + 1).clamp(0, n - 1);
+      final x0 = (_tileX(minLng, z) - 1).clamp(0, n - 1).toInt();
+      final x1 = (_tileX(maxLng, z) + 1).clamp(0, n - 1).toInt();
+      final y0 = (_tileY(maxLat, z) - 1).clamp(0, n - 1).toInt();
+      final y1 = (_tileY(minLat, z) + 1).clamp(0, n - 1).toInt();
 
       for (var x = x0; x <= x1; x++) {
         for (var y = y0; y <= y1; y++) {
@@ -174,7 +174,6 @@ class OfflineMapService {
       'downloadedAt': DateTime.now().toIso8601String(),
     }));
 
-    // Mantém o registro do download também no backend para o modelo ER.
     try {
       await ApiClient.post('/trilhas/$idTrilha/mapas-offline', {
         'arquivoUrl': tileTemplate,
