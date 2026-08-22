@@ -1,13 +1,12 @@
 import 'dart:convert';
 
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/usuario.dart';
 
 class SessionService {
   SessionService._();
 
-  static const _storage = FlutterSecureStorage();
   static const _tokenKey = 'trailup_auth_token';
   static const _userKey = 'trailup_auth_user';
 
@@ -15,13 +14,15 @@ class SessionService {
     required String token,
     required Usuario usuario,
   }) async {
-    await _storage.write(key: _tokenKey, value: token);
-    await _storage.write(key: _userKey, value: jsonEncode(usuario.toJson()));
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_tokenKey, token);
+    await prefs.setString(_userKey, jsonEncode(usuario.toJson()));
   }
 
   static Future<({String token, Usuario usuario})?> restoreSession() async {
-    final token = await _storage.read(key: _tokenKey);
-    final userJson = await _storage.read(key: _userKey);
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString(_tokenKey);
+    final userJson = prefs.getString(_userKey);
 
     if (token == null || token.isEmpty || userJson == null || userJson.isEmpty) {
       return null;
@@ -37,11 +38,13 @@ class SessionService {
   }
 
   static Future<void> updateUser(Usuario usuario) async {
-    await _storage.write(key: _userKey, value: jsonEncode(usuario.toJson()));
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_userKey, jsonEncode(usuario.toJson()));
   }
 
   static Future<void> clear() async {
-    await _storage.delete(key: _tokenKey);
-    await _storage.delete(key: _userKey);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_tokenKey);
+    await prefs.remove(_userKey);
   }
 }
