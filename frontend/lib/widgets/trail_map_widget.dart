@@ -1,49 +1,103 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import '../core/theme/app_theme.dart';
 import '../models/checkpoint.dart';
 import 'satellite_map_widget.dart';
 
-class TrailMapWidget extends StatelessWidget {
+class TrailMapWidget extends StatefulWidget {
   final List<Checkpoint> checkpoints;
   final String? localizacao;
-  final LatLng? currentPosition;
-  final bool navigationMode;
 
-  const TrailMapWidget({
-    super.key,
-    required this.checkpoints,
-    this.localizacao,
-    this.currentPosition,
-    this.navigationMode = false,
-  });
+  const TrailMapWidget({super.key, required this.checkpoints, this.localizacao});
+
+  @override
+  State<TrailMapWidget> createState() => _TrailMapWidgetState();
+}
+
+class _TrailMapWidgetState extends State<TrailMapWidget> {
+  StreamSubscription<Position>? _positionSubscription;
+  LatLng? _currentPosition;
+  String? _locationError;
+
+  @override
+  void initState() {
+    super.initState();
+    _startLocationTracking();
+  }
+
+  @override
+  void dispose() {
+    _positionSubscription?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _startLocationTracking() async {
+    try {
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        if (mounted) setState(() => _locationError = 'Ative o GPS para ver sua posição');
+        return;
+      }
+
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
+        if (mounted) setState(() => _locationError = 'Permita a localização para navegar');
+        return;
+      }
+
+      final firstPosition = await Geolocator.getCurrentPosition();
+      if (mounted) {
+        setState(() {
+          _currentPosition = LatLng(firstPosition.latitude, firstPosition.longitude);
+          _locationError = null;
+        });
+      }
+
+      _positionSubscription = Geolocator.getPositionStream(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          distanceFilter: 5,
+        ),
+      ).listen((position) {
+        if (!mounted) return;
+        setState(() {
+          _currentPosition = LatLng(position.latitude, position.longitude);
+          _locationError = null;
+        });
+      });
+    } catch (_) {
+      if (mounted) setState(() => _locationError = 'Localização indisponível');
+    }
+  }
 
   bool _isValidCoord(double lat, double lng) {
     return lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180 && !(lat == 0 && lng == 0);
   }
 
   List<LatLng> get _route {
-    return checkpoints
+    return widget.checkpoints
         .where((c) => _isValidCoord(c.latitude, c.longitude))
         .map((c) => LatLng(c.latitude, c.longitude))
         .toList();
   }
 
   List<MapPin> _checkpointPins(List<LatLng> route) {
-    final pins = <MapPin>[];
-    for (var i = 0; i < route.length; i++) {
+    return List.generate(route.length, (i) {
       final isStart = i == 0;
       final isEnd = i == route.length - 1;
-      pins.add(
-        MapPin(
-          position: route[i],
-          label: isStart ? 'Início' : isEnd ? 'Fim' : 'Checkpoint ${i + 1}',
-          color: isStart ? AppColors.greenLight : isEnd ? AppColors.amber : AppColors.green,
-          icon: isStart ? Icons.flag : isEnd ? Icons.flag_circle : Icons.location_on,
-        ),
+      return MapPin(
+        position: route[i],
+        label: isStart ? 'Início' : isEnd ? 'Fim' : 'Checkpoint ${i + 1}',
+        color: isStart ? AppColors.greenLight : isEnd ? AppColors.amber : AppColors.green,
+        icon: isStart ? Icons.flag : isEnd ? Icons.flag_circle : Icons.location_on,
       );
-    }
-    return pins;
+    });
   }
 
   @override
@@ -51,10 +105,10 @@ class TrailMapWidget extends StatelessWidget {
     final route = _route;
     final pins = _checkpointPins(route);
 
-    if (navigationMode && currentPosition != null) {
+    if (_currentPosition != null) {
       pins.add(
         MapPin(
-          position: currentPosition!,
+          position: _currentPosition!,
           label: 'Você está aqui',
           color: Colors.blue,
           icon: Icons.navigation,
@@ -63,12 +117,10 @@ class TrailMapWidget extends StatelessWidget {
     }
 
     return Container(
-      height: navigationMode ? 360 : 220,
+      height: 320,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: navigationMode ? AppColors.greenLight.withOpacity(0.5) : AppColors.greenLight.withOpacity(0.15),
-        ),
+        border: Border.all(color: AppColors.greenLight.withOpacity(0.35)),
       ),
       clipBehavior: Clip.antiAlias,
       child: Stack(
@@ -78,9 +130,9 @@ class TrailMapWidget extends StatelessWidget {
               route: route,
               pins: pins,
               center: route.first,
-              zoom: navigationMode ? 15 : 14,
+              zoom: 15,
               fitBounds: route.length > 1,
-              fitPadding: EdgeInsets.fromLTRB(42, navigationMode ? 64 : 48, 42, 48),
+              fitPadding: const EdgeInsets.fromLTRB(42, 64, 42, 48),
             )
           else
             Container(
@@ -91,38 +143,38 @@ class TrailMapWidget extends StatelessWidget {
                 style: TextStyle(color: AppColors.textDim, fontSize: 12),
               ),
             ),
-          if (navigationMode)
-            Positioned(
-              left: 10,
-              top: 10,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(
-                  color: AppColors.green.withOpacity(0.94),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      currentPosition == null ? Icons.gps_off : Icons.gps_fixed,
-                      size: 13,
-                      color: Colors.white,
-                    ),
-                    const SizedBox(width: 5),
-                    Text(
-                      currentPosition == null ? 'Obtendo localização…' : 'Trilha em andamento',
-                      style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
-                    ),
-                  ],
-                ),
+          Positioned(
+            left: 10,
+            top: 10,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: AppColors.green.withOpacity(0.94),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    _currentPosition == null ? Icons.gps_not_fixed : Icons.gps_fixed,
+                    size: 13,
+                    color: Colors.white,
+                  ),
+                  const SizedBox(width: 5),
+                  Text(
+                    _locationError ?? (_currentPosition == null ? 'Obtendo localização…' : 'Localização em tempo real'),
+                    style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                  ),
+                ],
               ),
             ),
-          if (localizacao != null && localizacao!.isNotEmpty)
+          ),
+          if (widget.localizacao != null && widget.localizacao!.isNotEmpty)
             Positioned(
               left: 10,
               bottom: 10,
               child: Container(
+                constraints: const BoxConstraints(maxWidth: 230),
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 decoration: BoxDecoration(
                   color: AppColors.bgDark.withOpacity(0.9),
@@ -133,9 +185,12 @@ class TrailMapWidget extends StatelessWidget {
                   children: [
                     const Icon(Icons.location_on, size: 12, color: AppColors.greenLight),
                     const SizedBox(width: 4),
-                    Text(
-                      localizacao!,
-                      style: const TextStyle(color: AppColors.textDim, fontSize: 10),
+                    Flexible(
+                      child: Text(
+                        widget.localizacao!,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(color: AppColors.textDim, fontSize: 10),
+                      ),
                     ),
                   ],
                 ),
