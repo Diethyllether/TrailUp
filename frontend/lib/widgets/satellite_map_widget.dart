@@ -48,6 +48,7 @@ class SatelliteMapWidget extends StatefulWidget {
 
 class _SatelliteMapWidgetState extends State<SatelliteMapWidget> {
   final _mapController = MapController();
+  final _tileProvider = NetworkTileProvider();
 
   @override
   void initState() {
@@ -83,6 +84,7 @@ class _SatelliteMapWidgetState extends State<SatelliteMapWidget> {
       CameraFit.bounds(
         bounds: LatLngBounds.fromPoints(points),
         padding: widget.fitPadding,
+        maxZoom: 16,
       ),
     );
   }
@@ -97,6 +99,8 @@ class _SatelliteMapWidgetState extends State<SatelliteMapWidget> {
       options: MapOptions(
         initialCenter: initialCenter,
         initialZoom: initialZoom,
+        minZoom: 2,
+        maxZoom: 19,
         interactionOptions: InteractionOptions(
           flags: widget.interactive ? InteractiveFlag.all : InteractiveFlag.none,
         ),
@@ -105,7 +109,13 @@ class _SatelliteMapWidgetState extends State<SatelliteMapWidget> {
         TileLayer(
           urlTemplate: widget.satellite ? MapConfig.satelliteTileUrl : MapConfig.streetTileUrl,
           userAgentPackageName: MapConfig.userAgent,
+          minZoom: 2,
           maxZoom: 19,
+          maxNativeZoom: 19,
+          tileProvider: _tileProvider,
+          errorTileCallback: (tile, error, stackTrace) {
+            debugPrint('TrailUp: falha ao carregar tile ${tile.coordinates}: $error');
+          },
         ),
         if (widget.route.length > 1)
           PolylineLayer(
@@ -130,7 +140,7 @@ class _SatelliteMapWidgetState extends State<SatelliteMapWidget> {
           alignment: AttributionAlignment.bottomRight,
           attributions: [
             TextSourceAttribution(
-              widget.satellite ? 'Esri, Maxar, Earthstar Geographics' : 'OpenStreetMap contributors',
+              widget.satellite ? 'Esri World Imagery' : 'OpenStreetMap contributors',
               onTap: () {},
             ),
           ],
@@ -142,8 +152,9 @@ class _SatelliteMapWidgetState extends State<SatelliteMapWidget> {
   Marker _buildMarker(MapPin pin) {
     return Marker(
       point: pin.position,
-      width: 44,
-      height: 44,
+      width: 140,
+      height: 58,
+      alignment: Alignment.topCenter,
       child: GestureDetector(
         onTap: pin.onTap,
         child: Column(
@@ -163,16 +174,20 @@ class _SatelliteMapWidgetState extends State<SatelliteMapWidget> {
               child: Icon(pin.icon, size: 16, color: Colors.white),
             ),
             if (pin.label != null)
-              Container(
-                margin: const EdgeInsets.only(top: 2),
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: AppColors.bgDark.withOpacity(0.85),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  pin.label!,
-                  style: const TextStyle(color: AppColors.textPrimary, fontSize: 9, fontWeight: FontWeight.bold),
+              Flexible(
+                child: Container(
+                  margin: const EdgeInsets.only(top: 2),
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: AppColors.bgDark.withOpacity(0.85),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    pin.label!,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: AppColors.textPrimary, fontSize: 9, fontWeight: FontWeight.bold),
+                  ),
                 ),
               ),
           ],
