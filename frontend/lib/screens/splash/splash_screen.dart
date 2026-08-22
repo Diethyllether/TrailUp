@@ -1,10 +1,44 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
+import '../../services/auth_service.dart';
 import '../auth/login_screen.dart';
 import '../auth/register_screen.dart';
+import '../home/home_screen.dart';
 
-class SplashScreen extends StatelessWidget {
+class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
+
+  @override
+  State<SplashScreen> createState() => _SplashScreenState();
+}
+
+class _SplashScreenState extends State<SplashScreen> {
+  bool _restoringSession = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _restoreSession();
+  }
+
+  Future<void> _restoreSession() async {
+    try {
+      final usuario = await AuthService.restoreSession();
+      if (!mounted) return;
+      if (usuario != null) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => HomeScreen(usuario: usuario)),
+          (route) => false,
+        );
+        return;
+      }
+    } catch (_) {
+      // If the local session cannot be restored, show the normal auth screen.
+    }
+
+    if (mounted) setState(() => _restoringSession = false);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -31,10 +65,10 @@ class SplashScreen extends StatelessWidget {
                 style: TextStyle(color: AppColors.textPrimary, fontSize: 36, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 12),
-              const Text(
-                'Sua próxima trilha começa aqui.',
+              Text(
+                _restoringSession ? 'Restaurando sua sessão...' : 'Sua próxima trilha começa aqui.',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: AppColors.textDim, fontSize: 15),
+                style: const TextStyle(color: AppColors.textDim, fontSize: 15),
               ),
               const SizedBox(height: 16),
               Container(
@@ -49,29 +83,36 @@ class SplashScreen extends StatelessWidget {
                 ),
               ),
               const Spacer(flex: 4),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () =>
-                      Navigator.push(context, MaterialPageRoute(builder: (_) => const RegisterScreen())),
-                  child: const Text('Criar conta'),
-                ),
-              ),
-              const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton(
-                  style: OutlinedButton.styleFrom(
-                    backgroundColor: AppColors.bgCard,
-                    foregroundColor: AppColors.greenLight,
-                    side: BorderSide.none,
+              if (_restoringSession)
+                const Padding(
+                  padding: EdgeInsets.only(bottom: 32),
+                  child: CircularProgressIndicator(color: AppColors.greenLight),
+                )
+              else ...[
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () =>
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => const RegisterScreen())),
+                    child: const Text('Criar conta'),
                   ),
-                  onPressed: () =>
-                      Navigator.push(context, MaterialPageRoute(builder: (_) => const LoginScreen())),
-                  child: const Text('Já tenho conta', style: TextStyle(fontWeight: FontWeight.w600)),
                 ),
-              ),
-              const SizedBox(height: 32),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      backgroundColor: AppColors.bgCard,
+                      foregroundColor: AppColors.greenLight,
+                      side: BorderSide.none,
+                    ),
+                    onPressed: () =>
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => const LoginScreen())),
+                    child: const Text('Já tenho conta', style: TextStyle(fontWeight: FontWeight.w600)),
+                  ),
+                ),
+                const SizedBox(height: 32),
+              ],
             ],
           ),
         ),
