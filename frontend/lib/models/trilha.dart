@@ -7,6 +7,7 @@ class Trilha {
   final String? localizacao;
   final double? distancia;
   final double? duracao;
+  final double? tempoEstimadoMin;
   final String? dificuldade;
   final String? descricao;
 
@@ -21,6 +22,7 @@ class Trilha {
     this.localizacao,
     this.distancia,
     this.duracao,
+    this.tempoEstimadoMin,
     this.dificuldade,
     this.descricao,
     this.avaliacaoMedia,
@@ -36,6 +38,7 @@ class Trilha {
       localizacao: json['localizacao'] as String?,
       distancia: (json['distancia'] as num?)?.toDouble(),
       duracao: (json['duracao'] as num?)?.toDouble(),
+      tempoEstimadoMin: (json['tempoEstimadoMin'] as num?)?.toDouble(),
       dificuldade: json['dificuldade'] as String?,
       descricao: json['descricao'] as String?,
       avaliacaoMedia: (json['avaliacaoMedia'] as num?)?.toDouble(),
@@ -67,5 +70,28 @@ class Trilha {
     final m = (duracao! % 60).toInt();
     if (h > 0) return '${h}h ${m}min';
     return '${m}min';
+  }
+
+  double? get tempoEstimadoEfetivo => tempoEstimadoMin ?? calcularTempoEstimadoMin(distancia, dificuldade);
+
+  String get tempoEstimadoFormatado {
+    final min = tempoEstimadoEfetivo;
+    if (min == null) return '--';
+    final h = min ~/ 60;
+    final m = (min % 60).round();
+    if (h > 0) return '${h}h ${m}min';
+    return '${m}min';
+  }
+
+  static double? calcularTempoEstimadoMin(double? distanciaKm, String? dificuldade) {
+    if (distanciaKm == null || distanciaKm <= 0) return null;
+    final dif = (dificuldade ?? '').toLowerCase();
+    double velocidade = 3.0;
+    if (dif.contains('fác') || dif.contains('fac')) {
+      velocidade = 4.0;
+    } else if (dif.contains('difíc') || dif.contains('dific')) {
+      velocidade = 2.0;
+    }
+    return double.parse(((distanciaKm / velocidade) * 60).toStringAsFixed(1));
   }
 }

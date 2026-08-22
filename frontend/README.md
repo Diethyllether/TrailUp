@@ -77,9 +77,10 @@ Todas as URLs acima são relativas a `ApiConfig.baseUrl` (ex:
 
 ## Integrações pendentes
 
-- **`screens/map/map_screen.dart`** — o painel de mapa é ilustrativo
-  (CustomPainter próprio, sem SDK). Para um mapa real, adicione
-  `google_maps_flutter` ou similar ao `pubspec.yaml`.
+- **`screens/map/map_screen.dart`** e **`widgets/trail_map_widget.dart`** usam
+  `flutter_map` com tiles de satélite Esri (World Imagery). Requer conexão
+  com a internet. O botão no canto superior direito alterna satélite / ruas
+  (OpenStreetMap).
 - **`screens/trilha/trilha_detail_screen.dart`** — o botão "Iniciar Trilha"
   registra um checkpoint com coordenadas placeholder `(0.0, 0.0)`. Adicione
   um pacote de geolocalização (ex: `geolocator`) para capturar a posição real

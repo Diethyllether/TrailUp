@@ -159,6 +159,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 h.dataRealizacao != null ? DateFormat('dd/MM/yyyy').format(h.dataRealizacao!) : '--',
                                 style: const TextStyle(color: AppColors.textDim, fontSize: 11),
                               ),
+                              if (h.tempo != null)
+                                Text(
+                                  'Tempo: ${h.tempo!.round()} min',
+                                  style: const TextStyle(color: AppColors.textDim, fontSize: 10),
+                                ),
                             ],
                           ),
                         ),

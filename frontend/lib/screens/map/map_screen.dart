@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:latlong2/latlong.dart';
 import '../../core/theme/app_theme.dart';
 import '../../models/usuario.dart';
 import '../../models/evento.dart';
@@ -6,6 +7,7 @@ import '../../models/denuncia.dart';
 import '../../services/evento_service.dart';
 import '../../services/denuncia_service.dart';
 import '../../widgets/evento_card.dart';
+import '../../widgets/satellite_map_widget.dart';
 
 class MapScreen extends StatefulWidget {
   final Usuario usuario;
@@ -18,20 +20,9 @@ class MapScreen extends StatefulWidget {
 class _MapScreenState extends State<MapScreen> {
   late Future<List<Evento>> _eventosFuture;
   final _buscaController = TextEditingController();
-
-  static const _posicoesDecorativas = [
-    Alignment(-0.5, -0.5),
-    Alignment(0.3, -0.2),
-    Alignment(0.7, -0.7),
-    Alignment(-0.2, 0.4),
-  ];
-
-  static const _coresDecorativas = [
-    AppColors.greenLight,
-    AppColors.amber,
-    AppColors.red,
-    AppColors.greenLight,
-  ];
+  final _listScrollController = ScrollController();
+  bool _satellite = true;
+  int? _eventoSelecionado;
 
   @override
   void initState() {
@@ -42,6 +33,7 @@ class _MapScreenState extends State<MapScreen> {
   @override
   void dispose() {
     _buscaController.dispose();
+    _listScrollController.dispose();
     super.dispose();
   }
 
@@ -76,6 +68,44 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
+  List<Evento> _filtrarEventos(List<Evento> eventos) {
+    final busca = _buscaController.text.trim().toLowerCase();
+    if (busca.isEmpty) return eventos;
+    return eventos.where((e) => e.titulo.toLowerCase().contains(busca)).toList();
+  }
+
+  List<MapPin> _pinsDeEventos(List<Evento> eventos) {
+    return eventos
+        .where((e) => e.latitude != null && e.longitude != null)
+        .map((e) {
+          final id = e.idEvento;
+          final selecionado = id != null && id == _eventoSelecionado;
+          return MapPin(
+            position: LatLng(e.latitude!, e.longitude!),
+            label: e.titulo.length > 18 ? '${e.titulo.substring(0, 18)}…' : e.titulo,
+            color: selecionado ? AppColors.amber : AppColors.greenLight,
+            icon: Icons.groups,
+            onTap: () {
+              setState(() => _eventoSelecionado = id);
+              _scrollParaEvento(eventos.indexOf(e));
+            },
+          );
+        })
+        .toList();
+  }
+
+  void _scrollParaEvento(int index) {
+    if (index < 0) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_listScrollController.hasClients) return;
+      _listScrollController.animateTo(
+        index * 120.0,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -83,82 +113,95 @@ class _MapScreenState extends State<MapScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            _buildMapaIlustrativo(),
-            Expanded(child: _buildDrawer()),
+            Expanded(child: _buildMapa()),
+            SizedBox(height: MediaQuery.of(context).size.height * 0.34, child: _buildDrawer()),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildMapaIlustrativo() {
-    return SizedBox(
-      height: 250,
-      child: Stack(
-        children: [
-          Container(color: const Color(0xFF16201A)),
-          CustomPaint(size: Size.infinite, painter: _GridPainter()),
-          for (int i = 0; i < _posicoesDecorativas.length; i++)
-            Align(
-              alignment: _posicoesDecorativas[i],
-              child: Container(
-                width: 26,
-                height: 26,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: _coresDecorativas[i].withOpacity(0.9),
-                  border: Border.all(color: Colors.white24, width: 2),
-                ),
-                child: const Icon(Icons.hiking, size: 14, color: Colors.black87),
+  Widget _buildMapa() {
+    return FutureBuilder<List<Evento>>(
+      future: _eventosFuture,
+      builder: (context, snapshot) {
+        final eventos = _filtrarEventos(snapshot.data ?? []);
+        final pins = _pinsDeEventos(eventos);
+
+        return Stack(
+          children: [
+            Positioned.fill(
+              child: SatelliteMapWidget(
+                key: ValueKey('map-${_satellite}-${pins.length}-$_eventoSelecionado'),
+                pins: pins,
+                satellite: _satellite,
+                fitBounds: pins.isNotEmpty,
+                fitPadding: const EdgeInsets.fromLTRB(48, 100, 48, 48),
               ),
             ),
-          const Align(alignment: Alignment(0, 0.3), child: _UserDot()),
-          Positioned(
-            left: 16,
-            right: 16,
-            top: 12,
-            child: Row(
-              children: [
-                Expanded(
-                  child: Container(
-                    height: 44,
-                    padding: const EdgeInsets.symmetric(horizontal: 14),
-                    decoration: BoxDecoration(
-                      color: AppColors.bgDark.withOpacity(0.9),
-                      borderRadius: BorderRadius.circular(22),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.search, size: 18, color: AppColors.textDim),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: TextField(
-                            controller: _buscaController,
-                            onChanged: (_) => setState(() {}),
-                            style: const TextStyle(color: AppColors.textPrimary, fontSize: 13),
-                            decoration: const InputDecoration(
-                              hintText: 'Buscar expedição no mapa...',
-                              border: InputBorder.none,
-                              isDense: true,
+            Positioned(
+              left: 16,
+              right: 16,
+              top: 12,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Container(
+                      height: 44,
+                      padding: const EdgeInsets.symmetric(horizontal: 14),
+                      decoration: BoxDecoration(
+                        color: AppColors.bgDark.withOpacity(0.92),
+                        borderRadius: BorderRadius.circular(22),
+                        boxShadow: [
+                          BoxShadow(color: Colors.black.withOpacity(0.25), blurRadius: 8, offset: const Offset(0, 2)),
+                        ],
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.search, size: 18, color: AppColors.textDim),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: TextField(
+                              controller: _buscaController,
+                              onChanged: (_) => setState(() {}),
+                              style: const TextStyle(color: AppColors.textPrimary, fontSize: 13),
+                              decoration: const InputDecoration(
+                                hintText: 'Buscar expedição no mapa...',
+                                border: InputBorder.none,
+                                isDense: true,
+                              ),
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  _MapToggleButton(
+                    satellite: _satellite,
+                    onToggle: () => setState(() => _satellite = !_satellite),
+                  ),
+                ],
+              ),
+            ),
+            if (snapshot.connectionState == ConnectionState.waiting)
+              const Positioned(
+                top: 70,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: Card(
+                    color: AppColors.bgCard,
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      child: Text('Carregando expedições…', style: TextStyle(color: AppColors.textDim, fontSize: 12)),
                     ),
                   ),
                 ),
-                const SizedBox(width: 10),
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(color: AppColors.green, borderRadius: BorderRadius.circular(22)),
-                  child: const Icon(Icons.tune, color: Colors.white),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+              ),
+          ],
+        );
+      },
     );
   }
 
@@ -168,6 +211,7 @@ class _MapScreenState extends State<MapScreen> {
       decoration: const BoxDecoration(
         color: AppColors.bgDark,
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 12, offset: Offset(0, -4))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -195,7 +239,7 @@ class _MapScreenState extends State<MapScreen> {
                 FutureBuilder<List<Evento>>(
                   future: _eventosFuture,
                   builder: (context, snapshot) {
-                    final count = snapshot.data?.length ?? 0;
+                    final count = _filtrarEventos(snapshot.data ?? []).length;
                     return Text('$count encontradas',
                         style: const TextStyle(color: AppColors.greenLight, fontSize: 11));
                   },
@@ -216,31 +260,41 @@ class _MapScreenState extends State<MapScreen> {
                     child: Text('Não foi possível carregar expedições.', style: TextStyle(color: AppColors.textDim)),
                   );
                 }
-                var eventos = snapshot.data ?? [];
-                final busca = _buscaController.text.trim().toLowerCase();
-                if (busca.isNotEmpty) {
-                  eventos = eventos.where((e) => e.titulo.toLowerCase().contains(busca)).toList();
-                }
+                final eventos = _filtrarEventos(snapshot.data ?? []);
                 if (eventos.isEmpty) {
                   return const Center(
                     child: Text('Nenhuma expedição aberta encontrada.', style: TextStyle(color: AppColors.textDim)),
                   );
                 }
                 return ListView.builder(
+                  controller: _listScrollController,
                   padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
                   itemCount: eventos.length,
-                  itemBuilder: (context, i) => EventoCard(
-                    evento: eventos[i],
-                    onParticipar: () async {
-                      if (eventos[i].idEvento == null || widget.usuario.idUsuario == null) return;
-                      await EventoService.participar(eventos[i].idEvento!, widget.usuario.idUsuario!);
-                      if (mounted) {
-                        ScaffoldMessenger.of(context)
-                            .showSnackBar(const SnackBar(content: Text('Você entrou na expedição!')));
-                      }
-                    },
-                    onReportar: () => _abrirDenunciaDialog(eventos[i]),
-                  ),
+                  itemBuilder: (context, i) {
+                    final e = eventos[i];
+                    final selecionado = e.idEvento == _eventoSelecionado;
+                    return Container(
+                      decoration: selecionado
+                          ? BoxDecoration(
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(color: AppColors.amber.withOpacity(0.6), width: 1.5),
+                            )
+                          : null,
+                      margin: const EdgeInsets.only(bottom: 4),
+                      child: EventoCard(
+                        evento: e,
+                        onParticipar: () async {
+                          if (e.idEvento == null || widget.usuario.idUsuario == null) return;
+                          await EventoService.participar(e.idEvento!, widget.usuario.idUsuario!);
+                          if (mounted) {
+                            ScaffoldMessenger.of(context)
+                                .showSnackBar(const SnackBar(content: Text('Você entrou na expedição!')));
+                          }
+                        },
+                        onReportar: () => _abrirDenunciaDialog(e),
+                      ),
+                    );
+                  },
                 );
               },
             ),
@@ -251,46 +305,32 @@ class _MapScreenState extends State<MapScreen> {
   }
 }
 
-class _UserDot extends StatelessWidget {
-  const _UserDot();
+class _MapToggleButton extends StatelessWidget {
+  final bool satellite;
+  final VoidCallback onToggle;
+
+  const _MapToggleButton({required this.satellite, required this.onToggle});
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      alignment: Alignment.center,
-      children: [
-        Container(
-          width: 30,
-          height: 30,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            border: Border.all(color: AppColors.blueUser.withOpacity(0.4), width: 2),
-          ),
+    return GestureDetector(
+      onTap: onToggle,
+      child: Container(
+        width: 44,
+        height: 44,
+        decoration: BoxDecoration(
+          color: AppColors.green,
+          borderRadius: BorderRadius.circular(22),
+          boxShadow: [
+            BoxShadow(color: Colors.black.withOpacity(0.25), blurRadius: 8, offset: const Offset(0, 2)),
+          ],
         ),
-        Container(
-          width: 14,
-          height: 14,
-          decoration: const BoxDecoration(shape: BoxShape.circle, color: AppColors.blueUser),
+        child: Icon(
+          satellite ? Icons.map_outlined : Icons.satellite_alt,
+          color: Colors.white,
+          size: 20,
         ),
-      ],
+      ),
     );
   }
-}
-
-class _GridPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = AppColors.greenLight.withOpacity(0.08)
-      ..strokeWidth = 1;
-    for (double x = 0; x < size.width; x += size.width / 6) {
-      canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
-    }
-    for (double y = 0; y < size.height; y += size.height / 5) {
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

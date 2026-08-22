@@ -60,8 +60,15 @@ class TrilhaCard extends StatelessWidget {
                         color: AppColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 14),
                   ),
                   const SizedBox(height: 4),
+                  if (trilha.localizacao != null && trilha.localizacao!.isNotEmpty)
+                    Text(
+                      trilha.localizacao!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(color: AppColors.textDim, fontSize: 10),
+                    ),
                   Text(
-                    '📍 ${trilha.distancia?.toStringAsFixed(1) ?? '--'} km  ⏱ ${trilha.duracaoFormatada}',
+                    '📍 ${trilha.distancia?.toStringAsFixed(1) ?? '--'} km  ⏱ ${trilha.tempoEstimadoFormatado}',
                     style: const TextStyle(color: AppColors.textDim, fontSize: 11),
                   ),
                 ],

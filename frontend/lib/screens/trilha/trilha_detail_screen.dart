@@ -6,12 +6,17 @@ import '../../models/trilha.dart';
 import '../../models/avaliacao.dart';
 import '../../models/evento.dart';
 import '../../models/checkpoint.dart';
+import '../../models/checklist_item.dart';
 import '../../services/trilha_service.dart';
 import '../../services/evento_service.dart';
 import '../../services/checkpoint_service.dart';
 import '../../services/favorito_service.dart';
+import '../../services/checklist_service.dart';
+import '../../services/historico_service.dart';
+import '../../models/historico_trilha.dart';
 import '../../widgets/difficulty_badge.dart';
 import '../../widgets/evento_card.dart';
+import '../../widgets/trail_map_widget.dart';
 
 class TrilhaDetailScreen extends StatefulWidget {
   final int idTrilha;
@@ -32,6 +37,10 @@ class _TrilhaDetailScreenState extends State<TrilhaDetailScreen> {
   bool _favoritado = false;
   bool _iniciandoTrilha = false;
   bool _baixandoMapa = false;
+  bool _trilhaEmAndamento = false;
+  DateTime? _inicioTrilha;
+  List<ChecklistItem> _checklist = [];
+  int? _checklistTrilhaId;
 
   @override
   void initState() {
@@ -83,13 +92,46 @@ class _TrilhaDetailScreenState extends State<TrilhaDetailScreen> {
         Checkpoint(latitude: 0.0, longitude: 0.0, horario: DateTime.now(), idTrilha: widget.idTrilha),
       );
       if (!mounted) return;
+      setState(() {
+        _trilhaEmAndamento = true;
+        _inicioTrilha = DateTime.now();
+      });
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Trilha iniciada! Bom trajeto 🥾')),
+        const SnackBar(content: Text('Trilha iniciada! Toque em "Concluir" ao terminar.')),
       );
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Não foi possível iniciar a trilha agora.')),
+      );
+    } finally {
+      if (mounted) setState(() => _iniciandoTrilha = false);
+    }
+  }
+
+  Future<void> _concluirTrilha() async {
+    setState(() => _iniciandoTrilha = true);
+    try {
+      final tempoMin = _inicioTrilha != null
+          ? DateTime.now().difference(_inicioTrilha!).inMinutes.toDouble()
+          : null;
+      await HistoricoService.registrar(HistoricoTrilha(
+        idTrilha: widget.idTrilha,
+        dataRealizacao: DateTime.now(),
+        tempo: tempoMin,
+      ));
+      if (!mounted) return;
+      setState(() {
+        _trilhaEmAndamento = false;
+        _inicioTrilha = null;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Trilha concluída! Registrada no seu histórico.')),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Não foi possível registrar a trilha no histórico.')),
       );
     } finally {
       if (mounted) setState(() => _iniciandoTrilha = false);
@@ -195,13 +237,19 @@ class _TrilhaDetailScreenState extends State<TrilhaDetailScreen> {
   }
 
   Widget _buildContent(Trilha trilha) {
+    if (_checklistTrilhaId != trilha.idTrilha) {
+      _checklistTrilhaId = trilha.idTrilha;
+      _checklist = ChecklistService.gerarParaTrilha(trilha);
+    }
     return Stack(
       children: [
         CustomScrollView(
           slivers: [
             SliverToBoxAdapter(child: _buildHeader(trilha)),
             SliverToBoxAdapter(child: _buildStats(trilha)),
+            SliverToBoxAdapter(child: _buildMapa(trilha)),
             SliverToBoxAdapter(child: _buildSobre(trilha)),
+            SliverToBoxAdapter(child: _buildChecklist(trilha)),
             SliverToBoxAdapter(child: _buildCheckpoints()),
             SliverToBoxAdapter(child: _buildEventos()),
             SliverToBoxAdapter(child: _buildAvaliacoes()),
@@ -280,12 +328,8 @@ class _TrilhaDetailScreenState extends State<TrilhaDetailScreen> {
     final stats = [
       {'icon': Icons.straighten, 'val': '${trilha.distancia?.toStringAsFixed(1) ?? '--'} km', 'label': 'Distância'},
       {'icon': Icons.timer_outlined, 'val': trilha.duracaoFormatada, 'label': 'Duração'},
+      {'icon': Icons.schedule, 'val': trilha.tempoEstimadoFormatado, 'label': 'Tempo est.'},
       {'icon': Icons.terrain, 'val': trilha.dificuldade ?? '--', 'label': 'Dificuldade'},
-      {
-        'icon': Icons.star_rounded,
-        'val': trilha.avaliacaoMedia?.toStringAsFixed(1) ?? '--',
-        'label': 'Avaliação',
-      },
     ];
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
@@ -313,6 +357,88 @@ class _TrilhaDetailScreenState extends State<TrilhaDetailScreen> {
     );
   }
 
+  Widget _buildMapa(Trilha trilha) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Mapa da Trilha',
+              style: TextStyle(color: AppColors.textPrimary, fontSize: 15, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 4),
+          const Text(
+            'Rota com checkpoints registrados por trilheiros.',
+            style: TextStyle(color: AppColors.textDim, fontSize: 12),
+          ),
+          const SizedBox(height: 10),
+          FutureBuilder<List<Checkpoint>>(
+            future: _checkpointsFuture,
+            builder: (context, snapshot) {
+              final checkpoints = snapshot.data ?? [];
+              return TrailMapWidget(checkpoints: checkpoints, localizacao: trilha.localizacao);
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildChecklist(Trilha trilha) {
+    final obrigatorios = _checklist.where((i) => i.obrigatorio).length;
+    final concluidos = _checklist.where((i) => i.concluido).length;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('Checklist de Equipamentos',
+                  style: TextStyle(color: AppColors.textPrimary, fontSize: 15, fontWeight: FontWeight.bold)),
+              Text(
+                '$concluidos/${_checklist.length}',
+                style: const TextStyle(color: AppColors.greenLight, fontSize: 12, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '$obrigatorios itens obrigatórios para esta trilha.',
+            style: const TextStyle(color: AppColors.textDim, fontSize: 12),
+          ),
+          const SizedBox(height: 10),
+          ..._checklist.map((item) {
+            return Container(
+              margin: const EdgeInsets.only(bottom: 6),
+              decoration: BoxDecoration(color: AppColors.bgCard, borderRadius: BorderRadius.circular(10)),
+              child: CheckboxListTile(
+                value: item.concluido,
+                onChanged: (v) => setState(() => item.concluido = v ?? false),
+                activeColor: AppColors.green,
+                checkColor: Colors.white,
+                dense: true,
+                controlAffinity: ListTileControlAffinity.leading,
+                title: Text(
+                  item.descricao,
+                  style: TextStyle(
+                    color: item.concluido ? AppColors.textDim : AppColors.textPrimary,
+                    fontSize: 13,
+                    decoration: item.concluido ? TextDecoration.lineThrough : null,
+                  ),
+                ),
+                subtitle: item.obrigatorio
+                    ? const Text('Obrigatório', style: TextStyle(color: AppColors.amber, fontSize: 10))
+                    : null,
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
   Widget _buildSobre(Trilha trilha) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
@@ -321,6 +447,19 @@ class _TrilhaDetailScreenState extends State<TrilhaDetailScreen> {
         children: [
           const Text('Sobre a trilha',
               style: TextStyle(color: AppColors.textPrimary, fontSize: 15, fontWeight: FontWeight.bold)),
+          if (trilha.localizacao != null && trilha.localizacao!.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                const Icon(Icons.location_on, size: 14, color: AppColors.greenLight),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(trilha.localizacao!,
+                      style: const TextStyle(color: AppColors.textDim, fontSize: 12)),
+                ),
+              ],
+            ),
+          ],
           const SizedBox(height: 8),
           Text(
             trilha.descricao ?? 'Sem descrição cadastrada para esta trilha ainda.',
@@ -518,12 +657,14 @@ class _TrilhaDetailScreenState extends State<TrilhaDetailScreen> {
           Expanded(
             flex: 2,
             child: ElevatedButton.icon(
-              onPressed: _iniciandoTrilha ? null : _iniciarTrilha,
+              onPressed: _iniciandoTrilha
+                  ? null
+                  : (_trilhaEmAndamento ? _concluirTrilha : _iniciarTrilha),
               icon: _iniciandoTrilha
                   ? const SizedBox(
                       height: 14, width: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                  : const Icon(Icons.navigation, size: 18),
-              label: const Text('Iniciar Trilha'),
+                  : Icon(_trilhaEmAndamento ? Icons.flag : Icons.navigation, size: 18),
+              label: Text(_trilhaEmAndamento ? 'Concluir Trilha' : 'Iniciar Trilha'),
             ),
           ),
           const SizedBox(width: 12),
