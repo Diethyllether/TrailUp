@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
@@ -27,10 +28,18 @@ class OfflineMapService {
   static const _minZoom = 12;
   static const _preferredMaxZoom = 16;
   static const _maxTiles = 650;
+  static const _tileRadius = 1; // corredor 3x3 em torno de cada checkpoint
+  static const _requestTimeout = Duration(seconds: 12);
+  static const _maxAttempts = 3;
+
+  static Future<Directory> _baseDirectory() async {
+    final base = await getApplicationDocumentsDirectory();
+    return Directory('${base.path}/trailup_offline');
+  }
 
   static Future<Directory> _trailDirectory(int idTrilha) async {
-    final base = await getApplicationDocumentsDirectory();
-    return Directory('${base.path}/trailup_offline/trilha_$idTrilha');
+    final base = await _baseDirectory();
+    return Directory('${base.path}/trilha_$idTrilha');
   }
 
   static Future<File> _manifestFile(int idTrilha) async {
@@ -65,32 +74,40 @@ class OfflineMapService {
     return y.clamp(0, n - 1).toInt();
   }
 
-  static List<(int, int, int)> _tilesForBounds(
+  /// Em vez de baixar o retângulo inteiro entre o ponto mais distante e o
+  /// restante da rota, cria um corredor de tiles em torno dos checkpoints.
+  /// Isso evita que um único checkpoint fora da rota faça o download explodir.
+  static List<(int, int, int)> _tilesForRoute(
     List<Checkpoint> checkpoints,
     int maxZoom,
   ) {
-    final latitudes = checkpoints.map((c) => c.latitude).toList();
-    final longitudes = checkpoints.map((c) => c.longitude).toList();
-    final minLat = latitudes.reduce(math.min);
-    final maxLat = latitudes.reduce(math.max);
-    final minLng = longitudes.reduce(math.min);
-    final maxLng = longitudes.reduce(math.max);
+    final unique = <String, (int, int, int)>{};
 
-    final tiles = <(int, int, int)>[];
     for (var z = _minZoom; z <= maxZoom; z++) {
       final n = 1 << z;
-      final x0 = (_tileX(minLng, z) - 1).clamp(0, n - 1).toInt();
-      final x1 = (_tileX(maxLng, z) + 1).clamp(0, n - 1).toInt();
-      final y0 = (_tileY(maxLat, z) - 1).clamp(0, n - 1).toInt();
-      final y1 = (_tileY(minLat, z) + 1).clamp(0, n - 1).toInt();
+      for (final checkpoint in checkpoints) {
+        final cx = _tileX(checkpoint.longitude, z);
+        final cy = _tileY(checkpoint.latitude, z);
 
-      for (var x = x0; x <= x1; x++) {
-        for (var y = y0; y <= y1; y++) {
-          tiles.add((z, x, y));
+        for (var dx = -_tileRadius; dx <= _tileRadius; dx++) {
+          for (var dy = -_tileRadius; dy <= _tileRadius; dy++) {
+            final x = (cx + dx).clamp(0, n - 1).toInt();
+            final y = (cy + dy).clamp(0, n - 1).toInt();
+            unique['$z/$x/$y'] = (z, x, y);
+          }
         }
       }
     }
-    return tiles;
+
+    final values = unique.values.toList()
+      ..sort((a, b) {
+        final z = a.$1.compareTo(b.$1);
+        if (z != 0) return z;
+        final x = a.$2.compareTo(b.$2);
+        if (x != 0) return x;
+        return a.$3.compareTo(b.$3);
+      });
+    return values;
   }
 
   static Future<String?> localTileTemplate(int idTrilha) async {
@@ -100,6 +117,11 @@ class OfflineMapService {
       final data = jsonDecode(await manifest.readAsString()) as Map<String, dynamic>;
       final template = data['tileTemplate'] as String?;
       if (template == null || template.isEmpty) return null;
+
+      final sample = data['sampleTile'] as String?;
+      if (sample != null && sample.isNotEmpty && !await File(sample).exists()) {
+        return null;
+      }
       return template;
     } catch (_) {
       return null;
@@ -110,6 +132,41 @@ class OfflineMapService {
     return await localTileTemplate(idTrilha) != null;
   }
 
+  static Future<http.Response> _downloadWithRetry(Uri uri) async {
+    Object? lastError;
+
+    for (var attempt = 1; attempt <= _maxAttempts; attempt++) {
+      try {
+        final response = await http
+            .get(
+              uri,
+              headers: const {
+                'User-Agent': MapConfig.userAgent,
+                'Accept': 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
+              },
+            )
+            .timeout(_requestTimeout);
+
+        if (response.statusCode >= 200 && response.statusCode < 300 && response.bodyBytes.isNotEmpty) {
+          return response;
+        }
+        lastError = HttpException('HTTP ${response.statusCode}');
+      } on TimeoutException catch (e) {
+        lastError = e;
+      } on SocketException catch (e) {
+        lastError = e;
+      } catch (e) {
+        lastError = e;
+      }
+
+      if (attempt < _maxAttempts) {
+        await Future.delayed(Duration(milliseconds: 350 * attempt));
+      }
+    }
+
+    throw StateError('Não foi possível baixar os tiles do mapa. Verifique sua conexão. ($lastError)');
+  }
+
   static Future<OfflineMapDownloadResult> downloadTrail({
     required int idTrilha,
     required List<Checkpoint> checkpoints,
@@ -117,77 +174,104 @@ class OfflineMapService {
   }) async {
     final valid = checkpoints.where(_validCoord).toList();
     if (valid.isEmpty) {
-      throw StateError('A trilha não possui checkpoints GPS válidos para baixar.');
+      throw StateError(
+        'Esta trilha ainda não possui checkpoints GPS válidos. Não há região suficiente para gerar o mapa offline.',
+      );
     }
 
     var maxZoom = _preferredMaxZoom;
-    var tiles = _tilesForBounds(valid, maxZoom);
+    var tiles = _tilesForRoute(valid, maxZoom);
     while (tiles.length > _maxTiles && maxZoom > _minZoom) {
       maxZoom--;
-      tiles = _tilesForBounds(valid, maxZoom);
+      tiles = _tilesForRoute(valid, maxZoom);
+    }
+    if (tiles.isEmpty) {
+      throw StateError('Nenhum tile pôde ser calculado para esta trilha.');
     }
     if (tiles.length > _maxTiles) {
-      throw StateError('A área da trilha é grande demais para o download offline automático.');
+      throw StateError(
+        'Esta trilha possui muitos checkpoints espalhados. O download offline ultrapassaria $_maxTiles tiles.',
+      );
     }
 
-    final dir = await _trailDirectory(idTrilha);
-    if (await dir.exists()) {
-      await dir.delete(recursive: true);
-    }
-    await dir.create(recursive: true);
+    final base = await _baseDirectory();
+    await base.create(recursive: true);
+
+    final finalDir = await _trailDirectory(idTrilha);
+    final tempDir = Directory('${base.path}/trilha_${idTrilha}_tmp');
+    if (await tempDir.exists()) await tempDir.delete(recursive: true);
+    await tempDir.create(recursive: true);
 
     var completed = 0;
     var bytesDownloaded = 0;
-
-    for (final tile in tiles) {
-      final (z, x, y) = tile;
-      final tileDir = Directory('${dir.path}/$z/$x');
-      await tileDir.create(recursive: true);
-      final file = File('${tileDir.path}/$y.jpg');
-      final url = MapConfig.satelliteTileUrl
-          .replaceAll('{z}', '$z')
-          .replaceAll('{x}', '$x')
-          .replaceAll('{y}', '$y');
-
-      final response = await http.get(
-        Uri.parse(url),
-        headers: const {'User-Agent': MapConfig.userAgent},
-      );
-      if (response.statusCode < 200 || response.statusCode >= 300) {
-        throw HttpException('Falha ao baixar tile $z/$x/$y (${response.statusCode})');
-      }
-      await file.writeAsBytes(response.bodyBytes, flush: false);
-      bytesDownloaded += response.bodyBytes.length;
-      completed++;
-      onProgress?.call(completed / tiles.length);
-    }
-
-    final tileTemplate = '${dir.path}/{z}/{x}/{y}.jpg';
-    final manifest = await _manifestFile(idTrilha);
-    await manifest.writeAsString(jsonEncode({
-      'idTrilha': idTrilha,
-      'tileTemplate': tileTemplate,
-      'minZoom': _minZoom,
-      'maxZoom': maxZoom,
-      'tileCount': tiles.length,
-      'bytesDownloaded': bytesDownloaded,
-      'downloadedAt': DateTime.now().toIso8601String(),
-    }));
+    String? firstTilePath;
 
     try {
-      await ApiClient.post('/trilhas/$idTrilha/mapas-offline', {
-        'arquivoUrl': tileTemplate,
-        'tamanhoArquivo': bytesDownloaded / (1024 * 1024),
-      });
-    } catch (_) {
-      // O mapa local continua válido mesmo se o registro remoto falhar.
-    }
+      for (final tile in tiles) {
+        final (z, x, y) = tile;
+        final tileDir = Directory('${tempDir.path}/$z/$x');
+        await tileDir.create(recursive: true);
+        final file = File('${tileDir.path}/$y.jpg');
 
-    return OfflineMapDownloadResult(
-      tileTemplate: tileTemplate,
-      tileCount: tiles.length,
-      bytesDownloaded: bytesDownloaded,
-    );
+        final url = MapConfig.satelliteTileUrl
+            .replaceAll('{z}', '$z')
+            .replaceAll('{x}', '$x')
+            .replaceAll('{y}', '$y');
+
+        final response = await _downloadWithRetry(Uri.parse(url));
+        await file.writeAsBytes(response.bodyBytes, flush: false);
+
+        firstTilePath ??= file.path;
+        bytesDownloaded += response.bodyBytes.length;
+        completed++;
+        onProgress?.call(completed / tiles.length);
+      }
+
+      if (firstTilePath == null) {
+        throw StateError('O servidor não retornou imagens para esta região.');
+      }
+
+      // Só substitui um mapa antigo depois que o novo download terminou.
+      if (await finalDir.exists()) {
+        await finalDir.delete(recursive: true);
+      }
+      await tempDir.rename(finalDir.path);
+
+      final tileTemplate = '${finalDir.path}/{z}/{x}/{y}.jpg';
+      final sampleTile = firstTilePath.replaceFirst(tempDir.path, finalDir.path);
+      final manifest = File('${finalDir.path}/manifest.json');
+      await manifest.writeAsString(jsonEncode({
+        'idTrilha': idTrilha,
+        'tileTemplate': tileTemplate,
+        'sampleTile': sampleTile,
+        'minZoom': _minZoom,
+        'maxZoom': maxZoom,
+        'tileCount': tiles.length,
+        'bytesDownloaded': bytesDownloaded,
+        'downloadedAt': DateTime.now().toIso8601String(),
+      }));
+
+      // Mantém o registro do download também no backend para o modelo ER.
+      try {
+        await ApiClient.post('/trilhas/$idTrilha/mapas-offline', {
+          'arquivoUrl': tileTemplate,
+          'tamanhoArquivo': bytesDownloaded / (1024 * 1024),
+        });
+      } catch (_) {
+        // O mapa local continua válido mesmo se o registro remoto falhar.
+      }
+
+      return OfflineMapDownloadResult(
+        tileTemplate: tileTemplate,
+        tileCount: tiles.length,
+        bytesDownloaded: bytesDownloaded,
+      );
+    } catch (e) {
+      if (await tempDir.exists()) {
+        await tempDir.delete(recursive: true);
+      }
+      rethrow;
+    }
   }
 
   static Future<void> remove(int idTrilha) async {
