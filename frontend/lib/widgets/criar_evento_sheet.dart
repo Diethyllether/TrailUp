@@ -6,6 +6,7 @@ import '../models/trilha.dart';
 import '../models/evento.dart';
 import '../services/trilha_service.dart';
 import '../services/evento_service.dart';
+import '../services/checkpoint_service.dart';
 
 Future<bool?> showCriarEventoSheet(BuildContext context, Usuario usuario) {
   return showModalBottomSheet<bool>(
@@ -60,23 +61,54 @@ class _CriarEventoSheetState extends State<_CriarEventoSheet> {
     setState(() => _dataHora = DateTime(data.year, data.month, data.day, hora.hour, hora.minute));
   }
 
+  bool _coordenadaValida(double lat, double lng) {
+    return lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180 && !(lat == 0 && lng == 0);
+  }
+
+  Future<(double?, double?)> _coordenadasDaTrilha(int idTrilha) async {
+    try {
+      final checkpoints = await CheckpointService.listarPorTrilha(idTrilha);
+      for (final checkpoint in checkpoints) {
+        if (_coordenadaValida(checkpoint.latitude, checkpoint.longitude)) {
+          return (checkpoint.latitude, checkpoint.longitude);
+        }
+      }
+    } catch (_) {
+      // O backend ainda possui fallback próprio; a criação não deve falhar
+      // apenas porque a consulta de checkpoints falhou no cliente.
+    }
+    return (null, null);
+  }
+
   Future<void> _salvar() async {
     if (_tituloController.text.trim().isEmpty || _trilhaSelecionada == null || _dataHora == null) {
       ScaffoldMessenger.of(context)
           .showSnackBar(const SnackBar(content: Text('Preencha trilha, título e data/hora.')));
       return;
     }
+
+    final idTrilha = _trilhaSelecionada!.idTrilha;
+    if (idTrilha == null) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('A trilha selecionada não possui um identificador válido.')));
+      return;
+    }
+
     setState(() => _salvando = true);
     try {
+      final (latitude, longitude) = await _coordenadasDaTrilha(idTrilha);
+
       await EventoService.criar(
         Evento(
           titulo: _tituloController.text.trim(),
           data: _dataHora,
           vagas: int.tryParse(_vagasController.text) ?? 6,
           tipo: _tipo,
+          latitude: latitude,
+          longitude: longitude,
           idCriador: widget.usuario.idUsuario!,
         ),
-        [_trilhaSelecionada!.idTrilha!],
+        [idTrilha],
       );
       if (mounted) Navigator.pop(context, true);
     } catch (_) {
