@@ -1,27 +1,32 @@
 {% extends "base.html" %}
-{% block title %}TrailUp · Encontre sua próxima trilha{% endblock %}
+{% block title %}TrailUp · Home{% endblock %}
 {% block content %}
 <section class="hero">
-  <div class="container hero-grid">
-    <div>
-      <div class="eyebrow">Explore ao ar livre</div>
-      <h1>Encontre a trilha certa para o seu próximo dia.</h1>
-      <p class="lead">Pesquise trilhas, veja a rota no Google Maps, salve favoritas e participe de expedições organizadas pela comunidade.</p>
-      <form class="searchbar" method="get" action="{{ url_for('web_bp.inicio') }}">
-        <input name="busca" value="{{ busca }}" placeholder="Nome ou localização da trilha">
-        <select name="dificuldade">
-          <option value="">Todas as dificuldades</option>
-          <option value="FACIL" {% if dificuldade == 'FACIL' %}selected{% endif %}>Fácil</option>
-          <option value="MODERADA" {% if dificuldade == 'MODERADA' %}selected{% endif %}>Moderada</option>
-          <option value="DIFICIL" {% if dificuldade == 'DIFICIL' %}selected{% endif %}>Difícil</option>
-        </select>
-        <button class="button primary" type="submit">Buscar</button>
-      </form>
-    </div>
-    <div class="panel">
-      <div class="eyebrow">TrailUp Web</div>
-      <h3>Mapa online, sem downloads</h3>
-      <p class="muted">As rotas agora são exibidas diretamente pelo Google Maps no navegador. Nenhum pacote de mapa precisa ser armazenado no dispositivo.</p>
+  <div class="container">
+    {% if usuario_logado %}
+      <h1 style="font-size:clamp(1.8rem,3vw,2.4rem); margin-bottom:6px">Olá, {{ usuario_logado.nome.split(' ')[0] }} 👋</h1>
+      <p class="lead" style="margin-bottom:0">Onde vai trilhar hoje?</p>
+    {% else %}
+      <h1 style="font-size:clamp(2rem,4vw,3.2rem)">Encontre sua próxima trilha.</h1>
+      <p class="lead">Descubra rotas, acompanhe expedições e salve suas trilhas favoritas.</p>
+    {% endif %}
+
+    <form class="searchbar" method="get" action="{{ url_for('web_bp.inicio') }}">
+      <input name="busca" value="{{ busca }}" placeholder="Buscar trilha ou região...">
+      <select name="dificuldade">
+        <option value="">Todas</option>
+        <option value="FACIL" {% if dificuldade == 'FACIL' %}selected{% endif %}>Fácil</option>
+        <option value="MODERADA" {% if dificuldade == 'MODERADA' %}selected{% endif %}>Moderado</option>
+        <option value="DIFICIL" {% if dificuldade == 'DIFICIL' %}selected{% endif %}>Difícil</option>
+      </select>
+      <button class="button primary" type="submit">Buscar</button>
+    </form>
+
+    <div class="filter-chips">
+      <a class="filter-chip {% if not dificuldade %}active{% endif %}" href="{{ url_for('web_bp.inicio', busca=busca) }}">Todas</a>
+      <a class="filter-chip {% if dificuldade == 'FACIL' %}active{% endif %}" href="{{ url_for('web_bp.inicio', busca=busca, dificuldade='FACIL') }}">Fácil</a>
+      <a class="filter-chip {% if dificuldade == 'MODERADA' %}active{% endif %}" href="{{ url_for('web_bp.inicio', busca=busca, dificuldade='MODERADA') }}">Moderado</a>
+      <a class="filter-chip {% if dificuldade == 'DIFICIL' %}active{% endif %}" href="{{ url_for('web_bp.inicio', busca=busca, dificuldade='DIFICIL') }}">Difícil</a>
     </div>
   </div>
 </section>
@@ -30,8 +35,7 @@
   <div class="container">
     <div class="section-header">
       <div>
-        <div class="eyebrow">Trilhas</div>
-        <h2>{% if busca or dificuldade %}Resultados da busca{% else %}Descubra novas rotas{% endif %}</h2>
+        <h2>{% if busca or dificuldade %}Resultados da busca{% else %}Trilhas em Destaque{% endif %}</h2>
       </div>
       <span class="muted">{{ trilhas|length }} encontrada(s)</span>
     </div>
@@ -71,7 +75,7 @@
         {% endfor %}
       </div>
     {% else %}
-      <div class="empty">Nenhuma trilha encontrada com esses filtros.</div>
+      <div class="empty">Nenhuma trilha encontrada.</div>
     {% endif %}
   </div>
 </section>
@@ -80,8 +84,7 @@
   <div class="container">
     <div class="section-header">
       <div>
-        <div class="eyebrow">Comunidade</div>
-        <h2>Próximas expedições</h2>
+        <h2>Expedições Ativas</h2>
       </div>
       <a class="button ghost" href="{{ url_for('web_bp.eventos') }}">Ver todas</a>
     </div>
@@ -104,7 +107,7 @@
         {% endfor %}
       </div>
     {% else %}
-      <div class="empty">Ainda não há expedições cadastradas.</div>
+      <div class="empty">Nenhuma expedição aberta perto de você.</div>
     {% endif %}
   </div>
 </section>
