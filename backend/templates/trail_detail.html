@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% block title %}{{ trilha.nome }} · TrailUp{% endblock %}
+{% block content %}
+<section class="detail-hero">
+  <div class="container detail-grid">
+    <div>
+      <div class="eyebrow">Trilha</div>
+      <h1 style="font-size:clamp(2.5rem,5vw,4.8rem)">{{ trilha.nome }}</h1>
+      <p class="lead">{{ trilha.descricao or 'Confira a rota, os dados principais e as expedições ligadas a esta trilha.' }}</p>
+      <div class="stats">
+        <div class="stat"><strong>{{ '%.1f'|format(trilha.distancia) if trilha.distancia is not none else '—' }}</strong><span class="muted">km</span></div>
+        <div class="stat"><strong>{{ trilha.dificuldade|capitalize if trilha.dificuldade else '—' }}</strong><span class="muted">dificuldade</span></div>
+        <div class="stat"><strong>{{ trilha.tempoEstimadoMin|round|int if trilha.tempoEstimadoMin else '—' }}</strong><span class="muted">min estimados</span></div>
+      </div>
+      <div class="card-actions">
+        {% if usuario_logado %}
+          <form method="post" action="{{ url_for('web_bp.alternar_favorito', id_trilha=trilha.idTrilha) }}">
+            <button class="button primary" type="submit">{% if favorito %}★ Favoritada{% else %}☆ Favoritar trilha{% endif %}</button>
+          </form>
+        {% else %}
+          <a class="button primary" href="{{ url_for('web_bp.login') }}">Entrar para favoritar</a>
+        {% endif %}
+        <a class="button ghost" href="{{ url_for('web_bp.eventos') }}">Ver expedições</a>
+      </div>
+    </div>
+    <div class="panel">
+      {% if trilha.imagemUrl %}
+        <img src="{{ trilha.imagemUrl }}" alt="{{ trilha.nome }}" style="width:100%;aspect-ratio:16/10;object-fit:cover;border-radius:16px">
+      {% else %}
+        <div class="map-placeholder" style="min-height:280px">Sem imagem cadastrada para esta trilha.</div>
+      {% endif %}
+      {% if trilha.localizacao %}<p class="muted" style="margin:14px 0 0">{{ trilha.localizacao }}</p>{% endif %}
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    <div class="section-header">
+      <div>
+        <div class="eyebrow">Rota</div>
+        <h2>Mapa da trilha</h2>
+      </div>
+      <span class="muted">{{ checkpoints|length }} ponto(s) GPS</span>
+    </div>
+    {% if google_maps_api_key and checkpoints %}
+      <div id="trail-map" class="map"></div>
+    {% elif not google_maps_api_key %}
+      <div class="map-placeholder">Defina <code>GOOGLE_MAPS_API_KEY</code> no ambiente para carregar o Google Maps.</div>
+    {% else %}
+      <div class="map-placeholder">Esta trilha ainda não possui checkpoints GPS válidos.</div>
+    {% endif %}
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    <div class="section-header">
+      <div>
+        <div class="eyebrow">Expedições</div>
+        <h2>Eventos nesta trilha</h2>
+      </div>
+    </div>
+    {% if eventos %}
+      <div class="event-list">
+        {% for evento in eventos %}
+          <div class="event-row">
+            <div>
+              <strong>{{ evento.titulo }}</strong>
+              <p class="muted">{{ evento.data or 'Data a definir' }} · {{ evento.tipo|capitalize }} · {{ evento.participantesAtuais }} participante(s){% if evento.vagas %} / {{ evento.vagas }} vagas{% endif %}</p>
+            </div>
+            {% if usuario_logado %}
+              <form method="post" action="{{ url_for('web_bp.participar_evento', id_evento=evento.idEvento) }}">
+                <button class="button primary" type="submit">Participar</button>
+              </form>
+            {% else %}
+              <a class="button ghost" href="{{ url_for('web_bp.login') }}">Entrar</a>
+            {% endif %}
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty">Nenhuma expedição vinculada a esta trilha ainda.</div>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+{% if google_maps_api_key and checkpoints %}
+<script>
+  const trailPoints = {{ checkpoints|tojson }}.map(p => ({ lat: Number(p.latitude), lng: Number(p.longitude) }));
+
+  function initTrailMap() {
+    const map = new google.maps.Map(document.getElementById('trail-map'), {
+      mapTypeId: 'terrain',
+      mapTypeControl: true,
+      streetViewControl: false,
+      fullscreenControl: true
+    });
+
+    const bounds = new google.maps.LatLngBounds();
+    trailPoints.forEach(point => bounds.extend(point));
+
+    new google.maps.Polyline({
+      path: trailPoints,
+      geodesic: true,
+      strokeColor: '#ff6b2c',
+      strokeOpacity: 1,
+      strokeWeight: 5,
+      map
+    });
+
+    new google.maps.Marker({ position: trailPoints[0], map, label: 'I', title: 'Início' });
+    if (trailPoints.length > 1) {
+      new google.maps.Marker({ position: trailPoints[trailPoints.length - 1], map, label: 'F', title: 'Fim' });
+    }
+
+    trailPoints.slice(1, -1).forEach((point, index) => {
+      new google.maps.Marker({ position: point, map, title: `Checkpoint ${index + 1}` });
+    });
+
+    map.fitBounds(bounds, 42);
+  }
+</script>
+<script async defer src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key|e }}&callback=initTrailMap"></script>
+{% endif %}
+{% endblock %}
