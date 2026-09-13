@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Entrar · TrailUp{% endblock %}
+{% block content %}
+<div class="auth-wrap">
+  <div class="auth-card">
+    <div class="eyebrow">Conta</div>
+    <h2>Entrar no TrailUp</h2>
+    <form method="post" class="form-grid">
+      <label>E-mail<input type="email" name="email" value="{{ email or '' }}" required autocomplete="email"></label>
+      <label>Senha<input type="password" name="senha" required autocomplete="current-password"></label>
+      <button class="button primary" type="submit">Entrar</button>
+    </form>
+    <p class="muted" style="margin-top:16px">Ainda não tem conta? <a href="{{ url_for('web_bp.cadastro') }}" style="color:var(--accent-2)">Cadastre-se</a>.</p>
+  </div>
+</div>
+{% endblock %}
