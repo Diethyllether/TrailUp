@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Não encontrado · TrailUp{% endblock %}
+{% block content %}
+<div class="auth-wrap">
+  <div class="auth-card" style="text-align:center">
+    <div class="eyebrow">404</div>
+    <h2>Conteúdo não encontrado</h2>
+    <p class="muted">A trilha ou página solicitada não existe.</p>
+    <a class="button primary" href="{{ url_for('web_bp.inicio') }}">Voltar ao início</a>
+  </div>
+</div>
+{% endblock %}
