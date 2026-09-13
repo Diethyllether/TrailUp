@@ -11,12 +11,13 @@ from controllers.avaliacao_controller import avaliacao_bp
 from controllers.favorito_controller import favorito_bp
 from controllers.checkpoint_controller import checkpoint_bp
 from controllers.foto_controller import foto_bp
-from controllers.mapa_offline_controller import mapa_offline_bp
 from controllers.evento_controller import evento_bp
 from controllers.notificacao_controller import notificacao_bp
 from controllers.denuncia_controller import denuncia_bp
 from controllers.historico_controller import historico_bp
 from controllers.relatorio_controller import relatorio_bp
+from controllers.web_controller import web_bp
+
 
 def create_app():
     app = Flask(__name__)
@@ -31,6 +32,11 @@ def create_app():
         response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
         return response
 
+    # Site Jinja2. O frontend web usa a mesma camada de Services da API.
+    app.register_blueprint(web_bp)
+
+    # API JSON mantida para integrações e testes. A antiga API de mapa offline
+    # foi retirada porque o produto agora é exclusivamente web e usa Google Maps.
     blueprints = [
         usuario_bp,
         trilha_bp,
@@ -38,7 +44,6 @@ def create_app():
         favorito_bp,
         checkpoint_bp,
         foto_bp,
-        mapa_offline_bp,
         evento_bp,
         notificacao_bp,
         denuncia_bp,
@@ -50,10 +55,12 @@ def create_app():
 
     @app.route("/api/health", methods=["GET"])
     def health():
-        return jsonify({"status": "ok", "service": "TrailUp API"}), 200
+        return jsonify({"status": "ok", "service": "TrailUp API + Web"}), 200
 
     @app.errorhandler(404)
     def not_found(e):
+        if not str(getattr(e, "description", "")).startswith("/api"):
+            return jsonify({"erro": "recurso não encontrado"}), 404
         return jsonify({"erro": "recurso não encontrado"}), 404
 
     @app.errorhandler(405)
@@ -66,6 +73,7 @@ def create_app():
         return jsonify({"erro": "erro interno do servidor"}), 500
 
     return app
+
 
 app = create_app()
 
