@@ -89,38 +89,56 @@
 {% block scripts %}
 {% if google_maps_api_key and checkpoints %}
 <script>
-  const trailPoints = {{ checkpoints|tojson }}.map(p => ({ lat: Number(p.latitude), lng: Number(p.longitude) }));
+  const trailPoints = {{ checkpoints|tojson }}
+    .map(p => ({ lat: Number(p.latitude), lng: Number(p.longitude) }))
+    .filter(p => Number.isFinite(p.lat) && Number.isFinite(p.lng));
 
   function initTrailMap() {
+    if (!trailPoints.length) return;
+
     const map = new google.maps.Map(document.getElementById('trail-map'), {
+      center: trailPoints[0],
+      zoom: 15,
       mapTypeId: 'terrain',
       mapTypeControl: true,
       streetViewControl: false,
       fullscreenControl: true
     });
 
-    const bounds = new google.maps.LatLngBounds();
-    trailPoints.forEach(point => bounds.extend(point));
-
-    new google.maps.Polyline({
+    // A rota é uma Polyline: os checkpoints são ligados na ordem em que
+    // vieram do backend, formando o traçado visível da trilha.
+    const routePolyline = new google.maps.Polyline({
       path: trailPoints,
       geodesic: true,
       strokeColor: '#ff6b2c',
       strokeOpacity: 1,
       strokeWeight: 5,
-      map
+      clickable: false,
+      map: map
     });
 
     new google.maps.Marker({ position: trailPoints[0], map, label: 'I', title: 'Início' });
+
     if (trailPoints.length > 1) {
-      new google.maps.Marker({ position: trailPoints[trailPoints.length - 1], map, label: 'F', title: 'Fim' });
+      new google.maps.Marker({
+        position: trailPoints[trailPoints.length - 1],
+        map,
+        label: 'F',
+        title: 'Fim'
+      });
+
+      trailPoints.slice(1, -1).forEach((point, index) => {
+        new google.maps.Marker({
+          position: point,
+          map,
+          title: `Checkpoint ${index + 1}`
+        });
+      });
+
+      const bounds = new google.maps.LatLngBounds();
+      trailPoints.forEach(point => bounds.extend(point));
+      map.fitBounds(bounds, 42);
     }
-
-    trailPoints.slice(1, -1).forEach((point, index) => {
-      new google.maps.Marker({ position: point, map, title: `Checkpoint ${index + 1}` });
-    });
-
-    map.fitBounds(bounds, 42);
   }
 </script>
 <script async defer src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key|e }}&callback=initTrailMap"></script>
