@@ -2,7 +2,9 @@ from datetime import datetime
 from functools import wraps
 
 from flask import Blueprint, current_app, flash, redirect, render_template, request, session, url_for
+from sqlalchemy.exc import SQLAlchemyError
 
+from extensions import db
 from models.trilha_model import Trilha
 from models.usuario_model import Usuario
 from services.casos_uso import CadastrarUsuarioService, LoginUsuarioService
@@ -45,7 +47,15 @@ class WebController:
     @staticmethod
     def _usuario_logado():
         id_usuario = session.get("id_usuario")
-        return Usuario.buscar_por_id(id_usuario) if id_usuario else None
+        if not id_usuario:
+            return None
+        try:
+            return Usuario.buscar_por_id(id_usuario)
+        except SQLAlchemyError:
+            db.session.rollback()
+            current_app.logger.exception("Falha ao carregar o usuário da sessão")
+            session.clear()
+            return None
 
     def _contexto_base(self):
         return {
@@ -54,18 +64,54 @@ class WebController:
         }
 
     def inicio(self):
+        """Página inicial.
+
+        Trilhas e eventos são carregados separadamente para que um problema de
+        schema em uma tabela legada não transforme toda a homepage em erro 500.
+        """
         busca = (request.args.get("busca") or "").strip()
         dificuldade = (request.args.get("dificuldade") or "").strip() or None
-        trilhas = self.trilha_service.buscar(busca=busca or None, dificuldade=dificuldade)
-        eventos = self.evento_service.listar_todos()
+
+        trilhas = []
+        eventos = []
+        erro_banco = False
+
+        try:
+            trilhas = self.trilha_service.buscar(
+                busca=busca or None,
+                dificuldade=dificuldade,
+            )
+        except SQLAlchemyError:
+            db.session.rollback()
+            erro_banco = True
+            current_app.logger.exception("Falha ao carregar trilhas na homepage")
+
+        try:
+            eventos = self.evento_service.listar_todos()
+        except SQLAlchemyError:
+            db.session.rollback()
+            erro_banco = True
+            current_app.logger.exception("Falha ao carregar eventos na homepage")
 
         favoritos_ids = set()
         usuario = self._usuario_logado()
         if usuario:
-            favoritos_ids = {
-                favorito.idTrilha
-                for favorito in self.favorito_service.listar_por_usuario(usuario.idUsuario)
-            }
+            try:
+                favoritos_ids = {
+                    favorito.idTrilha
+                    for favorito in self.favorito_service.listar_por_usuario(usuario.idUsuario)
+                }
+            except SQLAlchemyError:
+                db.session.rollback()
+                erro_banco = True
+                current_app.logger.exception("Falha ao carregar favoritos na homepage")
+
+        if erro_banco:
+            flash(
+                "O site abriu, mas o banco parece estar com um schema antigo. "
+                "Execute `python migrate_web_db.py` dentro de backend e reinicie o servidor.",
+                "danger",
+            )
 
         return render_template(
             "home.html",
@@ -79,11 +125,20 @@ class WebController:
 
     def mapa(self):
         eventos = []
-        for evento in self.evento_service.listar_ativos_no_mapa():
-            dados = self.evento_service.to_dict_completo(evento)
-            if dados.get("latitude") is None or dados.get("longitude") is None:
-                continue
-            eventos.append(dados)
+        try:
+            for evento in self.evento_service.listar_ativos_no_mapa():
+                dados = self.evento_service.to_dict_completo(evento)
+                if dados.get("latitude") is None or dados.get("longitude") is None:
+                    continue
+                eventos.append(dados)
+        except SQLAlchemyError:
+            db.session.rollback()
+            current_app.logger.exception("Falha ao carregar eventos no mapa")
+            flash(
+                "Não foi possível carregar os eventos do mapa. Se o banco veio da versão antiga, "
+                "execute `python migrate_web_db.py`.",
+                "danger",
+            )
 
         return render_template(
             "map.html",
@@ -147,6 +202,14 @@ class WebController:
             trilha = self.trilha_service.buscar_por_id(id_trilha)
         except ValueError:
             return render_template("404.html", **self._contexto_base()), 404
+        except SQLAlchemyError:
+            db.session.rollback()
+            current_app.logger.exception("Falha ao carregar a trilha %s", id_trilha)
+            flash(
+                "Não foi possível ler essa trilha no banco atual. Execute `python migrate_web_db.py`.",
+                "danger",
+            )
+            return redirect(url_for("web_bp.inicio"))
 
         checkpoints = [
             cp.to_dict()
