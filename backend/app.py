@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, jsonify, redirect, render_template, request, url_for
 
 from config import Config
 from extensions import db
@@ -22,6 +22,7 @@ from controllers.web_controller import web_bp
 def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
+    app.url_map.strict_slashes = False
 
     db.init_app(app)
 
@@ -52,6 +53,12 @@ def create_app():
     ]
     for bp in blueprints:
         app.register_blueprint(bp, url_prefix="/api")
+
+    # Abrir /api no navegador não deve resultar em uma página 404 sem contexto.
+    # O namespace continua sendo da API, mas redireciona para seu health check.
+    @app.route("/api", methods=["GET"])
+    def api_index():
+        return redirect(url_for("health"))
 
     @app.route("/api/health", methods=["GET"])
     def health():
