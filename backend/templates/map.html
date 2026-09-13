@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}Mapa · TrailUp{% endblock %}
+{% block content %}
+<section class="hero">
+  <div class="container">
+    <div class="eyebrow">Mapa</div>
+    <h1 style="font-size:clamp(2.6rem,5vw,4.8rem)">Expedições no mapa</h1>
+    <p class="lead">Veja onde estão as expedições ativas. As coordenadas vêm dos eventos ou dos primeiros checkpoints válidos das trilhas vinculadas.</p>
+  </div>
+</section>
+<section class="section" style="padding-top:0">
+  <div class="container">
+    {% if google_maps_api_key and eventos %}
+      <div id="events-map" class="map" style="min-height:620px"></div>
+    {% elif not google_maps_api_key %}
+      <div class="map-placeholder">Defina <code>GOOGLE_MAPS_API_KEY</code> para carregar o Google Maps.</div>
+    {% else %}
+      <div class="map-placeholder">Nenhuma expedição com localização disponível no momento.</div>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+{% if google_maps_api_key and eventos %}
+<script>
+  const trailupEvents = {{ eventos|tojson }};
+
+  function initEventsMap() {
+    const map = new google.maps.Map(document.getElementById('events-map'), {
+      mapTypeId: 'terrain',
+      streetViewControl: false,
+      fullscreenControl: true,
+      mapTypeControl: true
+    });
+    const bounds = new google.maps.LatLngBounds();
+    const info = new google.maps.InfoWindow();
+
+    trailupEvents.forEach(evento => {
+      const position = { lat: Number(evento.latitude), lng: Number(evento.longitude) };
+      bounds.extend(position);
+      const marker = new google.maps.Marker({
+        position,
+        map,
+        title: evento.titulo
+      });
+      marker.addListener('click', () => {
+        const data = evento.data ? evento.data : 'Data a definir';
+        const ocupacao = evento.vagas
+          ? `${evento.participantesAtuais}/${evento.vagas} participantes`
+          : `${evento.participantesAtuais} participante(s)`;
+        info.setContent(`
+          <div style="color:#111;max-width:260px">
+            <strong>${escapeHtml(evento.titulo)}</strong><br>
+            <span>${escapeHtml(data)} · ${escapeHtml(ocupacao)}</span>
+          </div>
+        `);
+        info.open({ anchor: marker, map });
+      });
+    });
+
+    map.fitBounds(bounds, 60);
+  }
+
+  function escapeHtml(value) {
+    return String(value ?? '')
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#039;');
+  }
+</script>
+<script async defer src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key|e }}&callback=initEventsMap"></script>
+{% endif %}
+{% endblock %}
