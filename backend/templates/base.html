@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}TrailUp{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/site.css') }}">
+  {% block head %}{% endblock %}
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="{{ url_for('web_bp.inicio') }}">Trail<span>Up</span></a>
+    <nav>
+      <a href="{{ url_for('web_bp.inicio') }}">Trilhas</a>
+      <a href="{{ url_for('web_bp.eventos') }}">Expedições</a>
+      {% if usuario_logado %}
+        <a href="{{ url_for('web_bp.favoritos') }}">Favoritos</a>
+        <a href="{{ url_for('web_bp.perfil') }}">{{ usuario_logado.nome }}</a>
+        <form action="{{ url_for('web_bp.logout') }}" method="post" class="inline-form">
+          <button class="link-button" type="submit">Sair</button>
+        </form>
+      {% else %}
+        <a href="{{ url_for('web_bp.login') }}">Entrar</a>
+        <a class="nav-cta" href="{{ url_for('web_bp.cadastro') }}">Criar conta</a>
+      {% endif %}
+    </nav>
+  </header>
+
+  {% with mensagens = get_flashed_messages(with_categories=true) %}
+    {% if mensagens %}
+      <div class="flash-stack">
+        {% for categoria, mensagem in mensagens %}
+          <div class="flash {{ categoria }}">{{ mensagem }}</div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  <main>{% block content %}{% endblock %}</main>
+
+  <footer>
+    <div><strong>TrailUp</strong> · descubra, organize e compartilhe trilhas.</div>
+    <div class="muted">Versão web com Flask, Jinja2 e Google Maps.</div>
+  </footer>
+  {% block scripts %}{% endblock %}
+</body>
+</html>
