@@ -1,4 +1,4 @@
-from flask import Flask, jsonify
+from flask import Flask, jsonify, render_template, request
 
 from config import Config
 from extensions import db
@@ -59,18 +59,22 @@ def create_app():
 
     @app.errorhandler(404)
     def not_found(e):
-        if not str(getattr(e, "description", "")).startswith("/api"):
+        if request.path.startswith("/api/"):
             return jsonify({"erro": "recurso não encontrado"}), 404
-        return jsonify({"erro": "recurso não encontrado"}), 404
+        return render_template("404.html", usuario_logado=None), 404
 
     @app.errorhandler(405)
     def method_not_allowed(e):
-        return jsonify({"erro": "método não permitido para esta rota"}), 405
+        if request.path.startswith("/api/"):
+            return jsonify({"erro": "método não permitido para esta rota"}), 405
+        return render_template("404.html", usuario_logado=None), 405
 
     @app.errorhandler(500)
     def internal_error(e):
         db.session.rollback()
-        return jsonify({"erro": "erro interno do servidor"}), 500
+        if request.path.startswith("/api/"):
+            return jsonify({"erro": "erro interno do servidor"}), 500
+        return render_template("404.html", usuario_logado=None), 500
 
     return app
 
