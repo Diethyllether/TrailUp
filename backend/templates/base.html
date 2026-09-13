@@ -14,16 +14,17 @@
   <header class="topbar">
     <a class="brand" href="{{ url_for('web_bp.inicio') }}">Trail<span>Up</span></a>
     <nav>
-      <a href="{{ url_for('web_bp.inicio') }}">Trilhas</a>
+      <a href="{{ url_for('web_bp.inicio') }}">Home</a>
       <a href="{{ url_for('web_bp.mapa') }}">Mapa</a>
-      <a href="{{ url_for('web_bp.eventos') }}">Expedições</a>
       {% if usuario_logado %}
+        <a class="nav-create" href="{{ url_for('web_bp.eventos') }}" title="Criar expedição">+</a>
         <a href="{{ url_for('web_bp.favoritos') }}">Favoritos</a>
-        <a href="{{ url_for('web_bp.perfil') }}">{{ usuario_logado.nome }}</a>
+        <a href="{{ url_for('web_bp.perfil') }}">Perfil</a>
         <form action="{{ url_for('web_bp.logout') }}" method="post" class="inline-form">
           <button class="link-button" type="submit">Sair</button>
         </form>
       {% else %}
+        <a href="{{ url_for('web_bp.eventos') }}">Expedições</a>
         <a href="{{ url_for('web_bp.login') }}">Entrar</a>
         <a class="nav-cta" href="{{ url_for('web_bp.cadastro') }}">Criar conta</a>
       {% endif %}
@@ -44,7 +45,7 @@
 
   <footer>
     <div><strong>TrailUp</strong> · descubra, organize e compartilhe trilhas.</div>
-    <div class="muted">Versão web com Flask, Jinja2 e Google Maps.</div>
+    <div class="muted">Versão web do TrailUp.</div>
   </footer>
   {% block scripts %}{% endblock %}
 </body>
