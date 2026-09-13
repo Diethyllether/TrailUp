@@ -54,8 +54,6 @@ def create_app():
     for bp in blueprints:
         app.register_blueprint(bp, url_prefix="/api")
 
-    # Abrir /api no navegador não deve resultar em uma página 404 sem contexto.
-    # O namespace continua sendo da API, mas redireciona para seu health check.
     @app.route("/api", methods=["GET"])
     def api_index():
         return redirect(url_for("health"))
@@ -79,9 +77,10 @@ def create_app():
     @app.errorhandler(500)
     def internal_error(e):
         db.session.rollback()
+        app.logger.exception("Erro interno ao atender %s", request.path)
         if request.path.startswith("/api/"):
             return jsonify({"erro": "erro interno do servidor"}), 500
-        return render_template("404.html", usuario_logado=None), 500
+        return render_template("500.html", usuario_logado=None), 500
 
     return app
 
