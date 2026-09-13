@@ -14,6 +14,19 @@ from services.trilha_service import TrilhaService
 web_bp = Blueprint("web_bp", __name__)
 
 
+def login_web_obrigatorio(func):
+    """Protege páginas HTML usando a sessão Flask do navegador."""
+
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        if not session.get("id_usuario"):
+            flash("Entre na sua conta para continuar.", "info")
+            return redirect(url_for("web_bp.login", proxima=request.path))
+        return func(*args, **kwargs)
+
+    return wrapper
+
+
 class WebController:
     """Controller das páginas HTML do TrailUp.
 
@@ -33,17 +46,6 @@ class WebController:
     def _usuario_logado():
         id_usuario = session.get("id_usuario")
         return Usuario.buscar_por_id(id_usuario) if id_usuario else None
-
-    @staticmethod
-    def _login_obrigatorio(func):
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            if not session.get("id_usuario"):
-                flash("Entre na sua conta para continuar.", "info")
-                return redirect(url_for("web_bp.login", proxima=request.path))
-            return func(*args, **kwargs)
-
-        return wrapper
 
     def _contexto_base(self):
         return {
@@ -75,6 +77,20 @@ class WebController:
             **self._contexto_base(),
         )
 
+    def mapa(self):
+        eventos = []
+        for evento in self.evento_service.listar_ativos_no_mapa():
+            dados = self.evento_service.to_dict_completo(evento)
+            if dados.get("latitude") is None or dados.get("longitude") is None:
+                continue
+            eventos.append(dados)
+
+        return render_template(
+            "map.html",
+            eventos=eventos,
+            **self._contexto_base(),
+        )
+
     def login(self):
         if request.method == "GET":
             if session.get("id_usuario"):
@@ -95,7 +111,11 @@ class WebController:
             return redirect(url_for("web_bp.inicio"))
         except ValueError as erro:
             flash(str(erro), "danger")
-            return render_template("login.html", email=request.form.get("email", ""), **self._contexto_base()), 401
+            return render_template(
+                "login.html",
+                email=request.form.get("email", ""),
+                **self._contexto_base(),
+            ), 401
 
     def cadastro(self):
         if request.method == "GET":
@@ -135,7 +155,10 @@ class WebController:
             and cp.longitude is not None
             and not (cp.latitude == 0 and cp.longitude == 0)
         ]
-        eventos = [self.evento_service.to_dict_completo(e) for e in self.evento_service.listar_por_trilha(id_trilha)]
+        eventos = [
+            self.evento_service.to_dict_completo(evento)
+            for evento in self.evento_service.listar_por_trilha(id_trilha)
+        ]
 
         favorito = False
         usuario = self._usuario_logado()
@@ -154,7 +177,7 @@ class WebController:
             **self._contexto_base(),
         )
 
-    @_login_obrigatorio
+    @login_web_obrigatorio
     def alternar_favorito(self, id_trilha):
         id_usuario = session["id_usuario"]
         favoritos = self.favorito_service.listar_por_usuario(id_usuario)
@@ -166,7 +189,7 @@ class WebController:
             flash("Trilha adicionada aos favoritos.", "success")
         return redirect(request.referrer or url_for("web_bp.inicio"))
 
-    @_login_obrigatorio
+    @login_web_obrigatorio
     def favoritos(self):
         favoritos = self.favorito_service.listar_por_usuario(session["id_usuario"])
         trilhas = [Trilha.buscar_por_id(item.idTrilha) for item in favoritos]
@@ -174,11 +197,19 @@ class WebController:
         return render_template("favorites.html", trilhas=trilhas, **self._contexto_base())
 
     def eventos(self):
-        eventos = [self.evento_service.to_dict_completo(e) for e in self.evento_service.listar_todos()]
+        eventos = [
+            self.evento_service.to_dict_completo(evento)
+            for evento in self.evento_service.listar_todos()
+        ]
         trilhas = self.trilha_service.listar_todos()
-        return render_template("events.html", eventos=eventos, trilhas=trilhas, **self._contexto_base())
+        return render_template(
+            "events.html",
+            eventos=eventos,
+            trilhas=trilhas,
+            **self._contexto_base(),
+        )
 
-    @_login_obrigatorio
+    @login_web_obrigatorio
     def criar_evento(self):
         try:
             data_texto = request.form.get("data", "").strip()
@@ -186,7 +217,9 @@ class WebController:
             data_evento = datetime.strptime(data_texto, "%Y-%m-%d").date() if data_texto else None
             horario_saida = None
             if data_texto and horario_texto:
-                horario_saida = datetime.strptime(f"{data_texto} {horario_texto}", "%Y-%m-%d %H:%M")
+                horario_saida = datetime.strptime(
+                    f"{data_texto} {horario_texto}", "%Y-%m-%d %H:%M"
+                )
 
             id_trilha = int(request.form["idTrilha"])
             dados = {
@@ -205,7 +238,7 @@ class WebController:
             flash(str(erro), "danger")
         return redirect(url_for("web_bp.eventos"))
 
-    @_login_obrigatorio
+    @login_web_obrigatorio
     def participar_evento(self, id_evento):
         try:
             self.evento_service.entrar(id_evento, session["id_usuario"])
@@ -214,7 +247,7 @@ class WebController:
             flash(str(erro), "danger")
         return redirect(request.referrer or url_for("web_bp.eventos"))
 
-    @_login_obrigatorio
+    @login_web_obrigatorio
     def perfil(self):
         usuario = self._usuario_logado()
         favoritos = self.favorito_service.listar_por_usuario(usuario.idUsuario)
@@ -228,13 +261,24 @@ class WebController:
 
 controller = WebController()
 web_bp.add_url_rule("/", "inicio", controller.inicio, methods=["GET"])
+web_bp.add_url_rule("/mapa", "mapa", controller.mapa, methods=["GET"])
 web_bp.add_url_rule("/login", "login", controller.login, methods=["GET", "POST"])
 web_bp.add_url_rule("/cadastro", "cadastro", controller.cadastro, methods=["GET", "POST"])
 web_bp.add_url_rule("/logout", "logout", controller.logout, methods=["POST"])
 web_bp.add_url_rule("/trilhas/<int:id_trilha>", "trilha", controller.trilha, methods=["GET"])
-web_bp.add_url_rule("/trilhas/<int:id_trilha>/favorito", "alternar_favorito", controller.alternar_favorito, methods=["POST"])
+web_bp.add_url_rule(
+    "/trilhas/<int:id_trilha>/favorito",
+    "alternar_favorito",
+    controller.alternar_favorito,
+    methods=["POST"],
+)
 web_bp.add_url_rule("/favoritos", "favoritos", controller.favoritos, methods=["GET"])
 web_bp.add_url_rule("/eventos", "eventos", controller.eventos, methods=["GET"])
 web_bp.add_url_rule("/eventos", "criar_evento", controller.criar_evento, methods=["POST"])
-web_bp.add_url_rule("/eventos/<int:id_evento>/participar", "participar_evento", controller.participar_evento, methods=["POST"])
+web_bp.add_url_rule(
+    "/eventos/<int:id_evento>/participar",
+    "participar_evento",
+    controller.participar_evento,
+    methods=["POST"],
+)
 web_bp.add_url_rule("/perfil", "perfil", controller.perfil, methods=["GET"])
