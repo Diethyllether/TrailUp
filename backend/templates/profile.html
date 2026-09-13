@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Perfil · TrailUp{% endblock %}
+{% block content %}
+<section class="hero">
+  <div class="container detail-grid">
+    <div>
+      <div class="eyebrow">Perfil</div>
+      <h1 style="font-size:clamp(2.6rem,5vw,4.8rem)">{{ usuario.nome }}</h1>
+      <p class="lead">{{ usuario.email }}</p>
+      <div class="stats">
+        <div class="stat"><strong>{{ total_favoritos }}</strong><span class="muted">trilhas favoritas</span></div>
+        <div class="stat"><strong>{{ usuario.dataCadastro.strftime('%d/%m/%Y') if usuario.dataCadastro else '—' }}</strong><span class="muted">membro desde</span></div>
+        <div class="stat"><strong>Web</strong><span class="muted">plataforma atual</span></div>
+      </div>
+    </div>
+    <div class="panel">
+      <h3>Atalhos</h3>
+      <div class="form-grid">
+        <a class="button ghost" href="{{ url_for('web_bp.favoritos') }}">Ver favoritos</a>
+        <a class="button ghost" href="{{ url_for('web_bp.eventos') }}">Ver expedições</a>
+        <a class="button ghost" href="{{ url_for('web_bp.inicio') }}">Explorar trilhas</a>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}
