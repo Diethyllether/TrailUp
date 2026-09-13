@@ -15,6 +15,7 @@
     <a class="brand" href="{{ url_for('web_bp.inicio') }}">Trail<span>Up</span></a>
     <nav>
       <a href="{{ url_for('web_bp.inicio') }}">Trilhas</a>
+      <a href="{{ url_for('web_bp.mapa') }}">Mapa</a>
       <a href="{{ url_for('web_bp.eventos') }}">Expedições</a>
       {% if usuario_logado %}
         <a href="{{ url_for('web_bp.favoritos') }}">Favoritos</a>
