@@ -153,6 +153,8 @@ class WebController:
             for cp in self.checkpoint_service.listar_por_trilha(id_trilha)
             if cp.latitude is not None
             and cp.longitude is not None
+            and -90 <= cp.latitude <= 90
+            and -180 <= cp.longitude <= 180
             and not (cp.latitude == 0 and cp.longitude == 0)
         ]
         eventos = [
@@ -260,7 +262,13 @@ class WebController:
 
 
 controller = WebController()
+
+# Entradas equivalentes para evitar 404 ao abrir URLs comuns de homepage.
 web_bp.add_url_rule("/", "inicio", controller.inicio, methods=["GET"])
+web_bp.add_url_rule("/home", "home", controller.inicio, methods=["GET"])
+web_bp.add_url_rule("/index", "index", controller.inicio, methods=["GET"])
+web_bp.add_url_rule("/index.html", "index_html", controller.inicio, methods=["GET"])
+
 web_bp.add_url_rule("/mapa", "mapa", controller.mapa, methods=["GET"])
 web_bp.add_url_rule("/login", "login", controller.login, methods=["GET", "POST"])
 web_bp.add_url_rule("/cadastro", "cadastro", controller.cadastro, methods=["GET", "POST"])
