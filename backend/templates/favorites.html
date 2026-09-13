@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Favoritos · TrailUp{% endblock %}
+{% block content %}
+<section class="hero">
+  <div class="container">
+    <div class="eyebrow">Sua coleção</div>
+    <h1 style="font-size:clamp(2.6rem,5vw,4.8rem)">Trilhas favoritas</h1>
+    <p class="lead">Rotas que você salvou para consultar e planejar depois.</p>
+  </div>
+</section>
+<section class="section">
+  <div class="container">
+    {% if trilhas %}
+      <div class="cards">
+        {% for trilha in trilhas %}
+          <article class="card">
+            <a href="{{ url_for('web_bp.trilha', id_trilha=trilha.idTrilha) }}">
+              <div class="card-media">{% if trilha.imagemUrl %}<img src="{{ trilha.imagemUrl }}" alt="{{ trilha.nome }}">{% endif %}</div>
+              <div class="card-body">
+                <div class="card-title">{{ trilha.nome }}</div>
+                <div class="meta"><span>{{ trilha.localizacao or 'Localização não informada' }}</span>{% if trilha.distancia is not none %}<span>· {{ '%.1f'|format(trilha.distancia) }} km</span>{% endif %}</div>
+              </div>
+            </a>
+            <div class="card-body" style="padding-top:0">
+              <form method="post" action="{{ url_for('web_bp.alternar_favorito', id_trilha=trilha.idTrilha) }}">
+                <button class="button danger" type="submit">★ Remover</button>
+              </form>
+            </div>
+          </article>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty">Você ainda não favoritou nenhuma trilha. <a href="{{ url_for('web_bp.inicio') }}" style="color:var(--accent-2)">Explorar trilhas</a>.</div>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}
