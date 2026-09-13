@@ -1,6 +1,5 @@
 import '../models/checkpoint.dart';
 import 'api_client.dart';
-import 'offline_map_service.dart';
 
 class CheckpointService {
   CheckpointService._();
@@ -16,19 +15,5 @@ class CheckpointService {
       checkpoint.toJson(),
     );
     return Checkpoint.fromJson(data as Map<String, dynamic>);
-  }
-
-  /// Baixa os tiles de satélite da região ocupada pelos checkpoints da trilha
-  /// e os persiste no armazenamento do aplicativo para navegação sem rede.
-  static Future<OfflineMapDownloadResult> baixarMapaOffline(
-    int idTrilha, {
-    void Function(double progress)? onProgress,
-  }) async {
-    final checkpoints = await listarPorTrilha(idTrilha);
-    return OfflineMapService.downloadTrail(
-      idTrilha: idTrilha,
-      checkpoints: checkpoints,
-      onProgress: onProgress,
-    );
   }
 }
