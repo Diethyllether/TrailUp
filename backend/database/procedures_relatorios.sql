@@ -25,29 +25,36 @@ BEGIN
         t.dificuldade,
         t.tempoEstimadoMin,
         t.imagemUrl,
-        ROUND(COALESCE(AVG(a.nota), 0), 2) AS mediaNota,
-        COUNT(DISTINCT a.idAvaliacao) AS quantidadeAvaliacoes,
-        COUNT(DISTINCT f.idFavorito) AS quantidadeFavoritos,
-        COUNT(DISTINCT h.idHistorico) AS quantidadeConclusoes
+        COALESCE(av.mediaNota, 0) AS mediaNota,
+        COALESCE(av.quantidadeAvaliacoes, 0) AS quantidadeAvaliacoes,
+        COALESCE(fav.quantidadeFavoritos, 0) AS quantidadeFavoritos,
+        COALESCE(hist.quantidadeConclusoes, 0) AS quantidadeConclusoes
     FROM trilha t
-    LEFT JOIN avaliacao a
-        ON a.idTrilha = t.idTrilha
-    LEFT JOIN favorito f
-        ON f.idTrilha = t.idTrilha
-    LEFT JOIN historicoTrilha h
-        ON h.idTrilha = t.idTrilha
+    LEFT JOIN (
+        SELECT
+            idTrilha,
+            ROUND(AVG(nota), 2) AS mediaNota,
+            COUNT(*) AS quantidadeAvaliacoes
+        FROM avaliacao
+        GROUP BY idTrilha
+    ) av ON av.idTrilha = t.idTrilha
+    LEFT JOIN (
+        SELECT
+            idTrilha,
+            COUNT(*) AS quantidadeFavoritos
+        FROM favorito
+        GROUP BY idTrilha
+    ) fav ON fav.idTrilha = t.idTrilha
+    LEFT JOIN (
+        SELECT
+            idTrilha,
+            COUNT(*) AS quantidadeConclusoes
+        FROM historicoTrilha
+        GROUP BY idTrilha
+    ) hist ON hist.idTrilha = t.idTrilha
     WHERE p_dificuldade IS NULL
        OR p_dificuldade = ''
        OR t.dificuldade = p_dificuldade
-    GROUP BY
-        t.idTrilha,
-        t.nome,
-        t.localizacao,
-        t.distancia,
-        t.duracao,
-        t.dificuldade,
-        t.tempoEstimadoMin,
-        t.imagemUrl
     ORDER BY
         mediaNota DESC,
         quantidadeAvaliacoes DESC,
@@ -70,39 +77,47 @@ BEGIN
         u.email,
         u.fotoPerfil,
         u.dataCadastro,
-        COUNT(DISTINCT h.idHistorico) AS trilhasRealizadas,
-        ROUND(COALESCE(SUM(DISTINCT_CASE.valor_distancia), 0), 2) AS distanciaTotalKm,
-        ROUND(COALESCE(SUM(DISTINCT_CASE.valor_tempo), 0), 2) AS tempoTotalMin,
-        COUNT(DISTINCT f.idFavorito) AS totalFavoritos,
-        COUNT(DISTINCT av.idAvaliacao) AS totalAvaliacoes,
-        ROUND(COALESCE(AVG(av.nota), 0), 2) AS mediaNotasDadas,
-        COUNT(DISTINCT pe.idEvento) AS eventosParticipados
+        COALESCE(hist.trilhasRealizadas, 0) AS trilhasRealizadas,
+        COALESCE(hist.distanciaTotalKm, 0) AS distanciaTotalKm,
+        COALESCE(hist.tempoTotalMin, 0) AS tempoTotalMin,
+        COALESCE(fav.totalFavoritos, 0) AS totalFavoritos,
+        COALESCE(av.totalAvaliacoes, 0) AS totalAvaliacoes,
+        COALESCE(av.mediaNotasDadas, 0) AS mediaNotasDadas,
+        COALESCE(evt.eventosParticipados, 0) AS eventosParticipados
     FROM usuario u
-    LEFT JOIN historicoTrilha h
-        ON h.idUsuario = u.idUsuario
     LEFT JOIN (
         SELECT
-            h2.idHistorico,
-            COALESCE(t2.distancia, 0) AS valor_distancia,
-            COALESCE(h2.tempo, 0) AS valor_tempo
-        FROM historicoTrilha h2
-        JOIN trilha t2
-            ON t2.idTrilha = h2.idTrilha
-    ) AS DISTINCT_CASE
-        ON DISTINCT_CASE.idHistorico = h.idHistorico
-    LEFT JOIN favorito f
-        ON f.idUsuario = u.idUsuario
-    LEFT JOIN avaliacao av
-        ON av.idUsuario = u.idUsuario
-    LEFT JOIN participante_evento pe
-        ON pe.idUsuario = u.idUsuario
-    WHERE u.idUsuario = p_id_usuario
-    GROUP BY
-        u.idUsuario,
-        u.nome,
-        u.email,
-        u.fotoPerfil,
-        u.dataCadastro;
+            h.idUsuario,
+            COUNT(*) AS trilhasRealizadas,
+            ROUND(COALESCE(SUM(t.distancia), 0), 2) AS distanciaTotalKm,
+            ROUND(COALESCE(SUM(h.tempo), 0), 2) AS tempoTotalMin
+        FROM historicoTrilha h
+        JOIN trilha t ON t.idTrilha = h.idTrilha
+        GROUP BY h.idUsuario
+    ) hist ON hist.idUsuario = u.idUsuario
+    LEFT JOIN (
+        SELECT
+            idUsuario,
+            COUNT(*) AS totalFavoritos
+        FROM favorito
+        GROUP BY idUsuario
+    ) fav ON fav.idUsuario = u.idUsuario
+    LEFT JOIN (
+        SELECT
+            idUsuario,
+            COUNT(*) AS totalAvaliacoes,
+            ROUND(AVG(nota), 2) AS mediaNotasDadas
+        FROM avaliacao
+        GROUP BY idUsuario
+    ) av ON av.idUsuario = u.idUsuario
+    LEFT JOIN (
+        SELECT
+            idUsuario,
+            COUNT(*) AS eventosParticipados
+        FROM participante_evento
+        GROUP BY idUsuario
+    ) evt ON evt.idUsuario = u.idUsuario
+    WHERE u.idUsuario = p_id_usuario;
 END$$
 
 -- ============================================================
@@ -123,27 +138,26 @@ BEGIN
         u.idUsuario,
         u.nome,
         u.fotoPerfil,
-        COUNT(DISTINCT h.idHistorico) AS trilhasConcluidas,
-        ROUND(COALESCE(SUM(DISTINCT_CASE.valor_distancia), 0), 2) AS distanciaTotalKm,
-        COUNT(DISTINCT av.idAvaliacao) AS avaliacoesRealizadas
+        COALESCE(hist.trilhasConcluidas, 0) AS trilhasConcluidas,
+        COALESCE(hist.distanciaTotalKm, 0) AS distanciaTotalKm,
+        COALESCE(av.avaliacoesRealizadas, 0) AS avaliacoesRealizadas
     FROM usuario u
-    LEFT JOIN historicoTrilha h
-        ON h.idUsuario = u.idUsuario
     LEFT JOIN (
         SELECT
-            h2.idHistorico,
-            COALESCE(t2.distancia, 0) AS valor_distancia
-        FROM historicoTrilha h2
-        JOIN trilha t2
-            ON t2.idTrilha = h2.idTrilha
-    ) AS DISTINCT_CASE
-        ON DISTINCT_CASE.idHistorico = h.idHistorico
-    LEFT JOIN avaliacao av
-        ON av.idUsuario = u.idUsuario
-    GROUP BY
-        u.idUsuario,
-        u.nome,
-        u.fotoPerfil
+            h.idUsuario,
+            COUNT(*) AS trilhasConcluidas,
+            ROUND(COALESCE(SUM(t.distancia), 0), 2) AS distanciaTotalKm
+        FROM historicoTrilha h
+        JOIN trilha t ON t.idTrilha = h.idTrilha
+        GROUP BY h.idUsuario
+    ) hist ON hist.idUsuario = u.idUsuario
+    LEFT JOIN (
+        SELECT
+            idUsuario,
+            COUNT(*) AS avaliacoesRealizadas
+        FROM avaliacao
+        GROUP BY idUsuario
+    ) av ON av.idUsuario = u.idUsuario
     ORDER BY
         trilhasConcluidas DESC,
         distanciaTotalKm DESC,
@@ -169,24 +183,20 @@ BEGIN
         t.dificuldade,
         t.tempoEstimadoMin,
         t.imagemUrl,
-        ROUND(COALESCE(AVG(a.nota), 0), 2) AS mediaNota,
-        COUNT(DISTINCT a.idAvaliacao) AS quantidadeAvaliacoes
+        COALESCE(av.mediaNota, 0) AS mediaNota,
+        COALESCE(av.quantidadeAvaliacoes, 0) AS quantidadeAvaliacoes
     FROM favorito f
     JOIN trilha t
         ON t.idTrilha = f.idTrilha
-    LEFT JOIN avaliacao a
-        ON a.idTrilha = t.idTrilha
+    LEFT JOIN (
+        SELECT
+            idTrilha,
+            ROUND(AVG(nota), 2) AS mediaNota,
+            COUNT(*) AS quantidadeAvaliacoes
+        FROM avaliacao
+        GROUP BY idTrilha
+    ) av ON av.idTrilha = t.idTrilha
     WHERE f.idUsuario = p_id_usuario
-    GROUP BY
-        f.idFavorito,
-        f.dataSalvo,
-        t.idTrilha,
-        t.nome,
-        t.localizacao,
-        t.distancia,
-        t.dificuldade,
-        t.tempoEstimadoMin,
-        t.imagemUrl
     ORDER BY
         f.dataSalvo DESC,
         t.nome ASC;
@@ -210,33 +220,29 @@ BEGIN
         e.longitude,
         e.idCriador,
         u.nome AS nomeCriador,
-        COUNT(DISTINCT pe.idUsuario) AS participantesAtuais,
-        GROUP_CONCAT(DISTINCT t.nome ORDER BY t.nome SEPARATOR ', ') AS trilhas
+        COALESCE(part.participantesAtuais, 0) AS participantesAtuais,
+        trilhas.trilhas
     FROM evento e
     JOIN usuario u
         ON u.idUsuario = e.idCriador
-    LEFT JOIN participante_evento pe
-        ON pe.idEvento = e.idEvento
-    LEFT JOIN evento_trilha et
-        ON et.idEvento = e.idEvento
-    LEFT JOIN trilha t
-        ON t.idTrilha = et.idTrilha
+    LEFT JOIN (
+        SELECT
+            idEvento,
+            COUNT(*) AS participantesAtuais
+        FROM participante_evento
+        GROUP BY idEvento
+    ) part ON part.idEvento = e.idEvento
+    LEFT JOIN (
+        SELECT
+            et.idEvento,
+            GROUP_CONCAT(t.nome ORDER BY t.nome SEPARATOR ', ') AS trilhas
+        FROM evento_trilha et
+        JOIN trilha t ON t.idTrilha = et.idTrilha
+        GROUP BY et.idEvento
+    ) trilhas ON trilhas.idEvento = e.idEvento
     WHERE e.imediata = TRUE
        OR e.data IS NULL
        OR e.data >= CURRENT_DATE
-    GROUP BY
-        e.idEvento,
-        e.titulo,
-        e.descricao,
-        e.data,
-        e.horarioSaida,
-        e.imediata,
-        e.vagas,
-        e.tipo,
-        e.latitude,
-        e.longitude,
-        e.idCriador,
-        u.nome
     ORDER BY
         e.imediata DESC,
         e.data ASC,
