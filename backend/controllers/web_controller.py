@@ -64,11 +64,6 @@ class WebController:
         }
 
     def inicio(self):
-        """Página inicial.
-
-        Trilhas e eventos são carregados separadamente para que um problema de
-        schema em uma tabela legada não transforme toda a homepage em erro 500.
-        """
         busca = (request.args.get("busca") or "").strip()
         dificuldade = (request.args.get("dificuldade") or "").strip() or None
 
@@ -108,8 +103,7 @@ class WebController:
 
         if erro_banco:
             flash(
-                "O site abriu, mas o banco parece estar com um schema antigo. "
-                "Execute `python migrate_web_db.py` dentro de backend e reinicie o servidor.",
+                "Não foi possível carregar todos os dados. Verifique a conexão com o banco e os logs do servidor.",
                 "danger",
             )
 
@@ -135,8 +129,7 @@ class WebController:
             db.session.rollback()
             current_app.logger.exception("Falha ao carregar eventos no mapa")
             flash(
-                "Não foi possível carregar os eventos do mapa. Se o banco veio da versão antiga, "
-                "execute `python migrate_web_db.py`.",
+                "Não foi possível carregar os eventos do mapa. Verifique o banco de dados e tente novamente.",
                 "danger",
             )
 
@@ -206,7 +199,7 @@ class WebController:
             db.session.rollback()
             current_app.logger.exception("Falha ao carregar a trilha %s", id_trilha)
             flash(
-                "Não foi possível ler essa trilha no banco atual. Execute `python migrate_web_db.py`.",
+                "Não foi possível carregar essa trilha. Verifique o banco de dados e tente novamente.",
                 "danger",
             )
             return redirect(url_for("web_bp.inicio"))
@@ -326,7 +319,6 @@ class WebController:
 
 controller = WebController()
 
-# Entradas equivalentes para evitar 404 ao abrir URLs comuns de homepage.
 web_bp.add_url_rule("/", "inicio", controller.inicio, methods=["GET"])
 web_bp.add_url_rule("/home", "home", controller.inicio, methods=["GET"])
 web_bp.add_url_rule("/index", "index", controller.inicio, methods=["GET"])
