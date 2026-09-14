@@ -30,7 +30,6 @@ from models.avaliacao_model import Avaliacao
 from models.favorito_model import Favorito
 from models.checkpoint_model import Checkpoint
 from models.foto_model import Foto
-from models.mapa_offline_model import MapaOffline
 from models.evento_model import Evento, EventoTrilha, ParticipanteEvento
 from models.notificacao_model import Notificacao
 from models.historico_model import HistoricoTrilha, RegistroRealizado
@@ -187,14 +186,6 @@ def _criar_trilha(dados):
                 idTrilha=trilha.idTrilha,
             )
         )
-
-    db.session.add(
-        MapaOffline(
-            arquivoUrl=f"/offline_maps/trilha_{trilha.idTrilha}.map",
-            tamanhoArquivo=round(dados["distancia"] * 1.8, 1),
-            idTrilha=trilha.idTrilha,
-        )
-    )
 
     db.session.add(
         Foto(
