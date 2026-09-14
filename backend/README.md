@@ -1,6 +1,6 @@
 # TrailUp — Backend + Site Web
 
-O TrailUp agora é servido pelo próprio Flask como um **site Jinja2**, mantendo também a API REST existente. A persistência usa **Flask-SQLAlchemy + MySQL** e os mapas do site usam **Google Maps JavaScript API**.
+O TrailUp é servido pelo próprio Flask como um **site Jinja2**, mantendo também a API REST existente. A persistência usa **Flask-SQLAlchemy + MySQL** e os mapas do site usam **Google Maps JavaScript API**.
 
 ## Arquitetura
 
@@ -40,6 +40,8 @@ backend/
 ├── static/
 │   └── css/site.css
 ├── database/
+│   ├── create_database.sql
+│   └── procedures_relatorios.sql
 ├── models/
 ├── repositories/
 ├── services/
@@ -65,7 +67,9 @@ Banco padrão:
 trilhas_db
 ```
 
-Criação:
+O projeto considera `database/create_database.sql` como a **fonte única do schema atual**. Não há suporte a migração automática de bancos antigos: para desenvolvimento, crie um banco novo usando o script atual.
+
+Criação do banco:
 
 ```bash
 mysql -u root -p < database/create_database.sql
@@ -77,13 +81,13 @@ Stored Procedures:
 mysql -u root -p < database/procedures_relatorios.sql
 ```
 
-`db.create_all()` cria estruturas ausentes, mas não substitui migrations para alterações de schema existentes.
+Para popular o banco com dados de demonstração:
 
-### Estruturas legadas de mapa offline
+```bash
+python seed_demo.py
+```
 
-A funcionalidade de **download de mapas offline foi removida da aplicação ativa**. O Controller e o Service de mapas offline não são mais registrados e os endpoints correspondentes deixaram de existir.
-
-O model/tabela `MapaOffline` pode permanecer temporariamente no schema para compatibilidade com bancos antigos. Ele não é usado pelo site novo e pode ser removido em uma migration posterior, se desejado.
+A funcionalidade de mapas offline foi removida. A rota exibida no Google Maps é formada pelos checkpoints GPS associados a cada trilha.
 
 ## Site Jinja2
 
@@ -202,16 +206,12 @@ Todas as rotas abaixo usam `/api`.
 | Relatórios | `GET /relatorios/usuarios/<id>/resumo` |
 | Ranking | `GET /relatorios/usuarios/ranking` |
 
-Não existem mais endpoints ativos `/mapas-offline`.
-
 ## Testes
 
 ```bash
 python tests/smoke_test.py
 python tests/requisitos_busca_test.py
 ```
-
-O smoke test usa SQLite em memória e cobre cadastro, login, trilhas, favoritos, avaliações, checkpoints, fotos, eventos, denúncias, notificações, histórico, relatórios, ranking, recuperação de senha, health check e carregamento básico do site web.
 
 ## Variáveis de ambiente
 
