@@ -22,6 +22,12 @@ class EventoService:
     def listar_por_trilha(self, id_trilha):
         return self.repository.listar_por_trilha(id_trilha)
 
+    def listar_por_usuario(self, id_usuario):
+        return self.repository.listar_por_usuario(id_usuario)
+
+    def usuario_participa(self, id_usuario, id_evento):
+        return self.repository.buscar_participante(id_usuario, id_evento) is not None
+
     def to_dict_completo(self, evento):
         dados = evento.to_dict()
         vinculos = self.repository.listar_trilhas_do_evento(evento.idEvento)
