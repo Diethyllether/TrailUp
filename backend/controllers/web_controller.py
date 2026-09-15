@@ -7,11 +7,13 @@ from sqlalchemy.exc import SQLAlchemyError
 from extensions import db
 from models.trilha_model import Trilha
 from models.usuario_model import Usuario
-from services.avaliacao_service import AvaliacaoService
 from services.casos_uso import CadastrarUsuarioService, LoginUsuarioService
+from services.avaliacao_service import AvaliacaoService
+from services.checklist_service import ChecklistService
 from services.checkpoint_service import CheckpointService
 from services.evento_service import EventoService
 from services.favorito_service import FavoritoService
+from services.historico_service import HistoricoService
 from services.trilha_service import TrilhaService
 
 web_bp = Blueprint("web_bp", __name__)
@@ -36,6 +38,8 @@ class WebController:
         self.evento_service = EventoService()
         self.favorito_service = FavoritoService()
         self.avaliacao_service = AvaliacaoService()
+        self.historico_service = HistoricoService()
+        self.checklist_service = ChecklistService()
 
     @staticmethod
     def _usuario_logado():
@@ -51,10 +55,7 @@ class WebController:
             return None
 
     def _contexto_base(self):
-        return {
-            "usuario_logado": self._usuario_logado(),
-            "google_maps_api_key": current_app.config.get("GOOGLE_MAPS_API_KEY", ""),
-        }
+        return {"usuario_logado": self._usuario_logado()}
 
     def inicio(self):
         busca = (request.args.get("busca") or "").strip()
@@ -62,14 +63,10 @@ class WebController:
         trilhas, eventos, erro_banco = [], [], False
         try:
             trilhas = self.trilha_service.buscar(busca=busca or None, dificuldade=dificuldade)
-        except SQLAlchemyError:
-            db.session.rollback(); erro_banco = True
-            current_app.logger.exception("Falha ao carregar trilhas na homepage")
-        try:
             eventos = self.evento_service.listar_todos()
         except SQLAlchemyError:
             db.session.rollback(); erro_banco = True
-            current_app.logger.exception("Falha ao carregar eventos na homepage")
+            current_app.logger.exception("Falha ao carregar a homepage")
         favoritos_ids = set()
         usuario = self._usuario_logado()
         if usuario:
@@ -77,9 +74,8 @@ class WebController:
                 favoritos_ids = {f.idTrilha for f in self.favorito_service.listar_por_usuario(usuario.idUsuario)}
             except SQLAlchemyError:
                 db.session.rollback(); erro_banco = True
-                current_app.logger.exception("Falha ao carregar favoritos na homepage")
         if erro_banco:
-            flash("Não foi possível carregar todos os dados. Verifique a conexão com o banco e os logs do servidor.", "danger")
+            flash("Não foi possível carregar todos os dados. Verifique a conexão com o banco.", "danger")
         return render_template("home.html", trilhas=trilhas, eventos=eventos[:6], favoritos_ids=favoritos_ids, busca=busca, dificuldade=dificuldade or "", **self._contexto_base())
 
     def mapa(self):
@@ -90,9 +86,7 @@ class WebController:
                 if dados.get("latitude") is not None and dados.get("longitude") is not None:
                     eventos.append(dados)
         except SQLAlchemyError:
-            db.session.rollback()
-            current_app.logger.exception("Falha ao carregar expedições")
-            flash("Não foi possível carregar as expedições. Verifique o banco de dados e tente novamente.", "danger")
+            db.session.rollback(); current_app.logger.exception("Falha ao carregar expedições")
         return render_template("map.html", eventos=eventos, **self._contexto_base())
 
     def login(self):
@@ -105,9 +99,7 @@ class WebController:
             session.clear(); session["id_usuario"] = usuario.idUsuario
             flash(f"Bem-vindo, {usuario.nome}!", "success")
             destino = request.args.get("proxima")
-            if destino and destino.startswith("/"):
-                return redirect(destino)
-            return redirect(url_for("web_bp.inicio"))
+            return redirect(destino if destino and destino.startswith("/") else url_for("web_bp.inicio"))
         except ValueError as erro:
             flash(str(erro), "danger")
             return render_template("login.html", email=request.form.get("email", ""), **self._contexto_base()), 401
@@ -133,50 +125,28 @@ class WebController:
             trilha = self.trilha_service.buscar_por_id(id_trilha)
         except ValueError:
             return render_template("404.html", **self._contexto_base()), 404
-        except SQLAlchemyError:
-            db.session.rollback(); current_app.logger.exception("Falha ao carregar a trilha %s", id_trilha)
-            flash("Não foi possível carregar essa trilha. Verifique o banco de dados e tente novamente.", "danger")
-            return redirect(url_for("web_bp.inicio"))
-
         checkpoints = [cp.to_dict() for cp in self.checkpoint_service.listar_por_trilha(id_trilha) if cp.latitude is not None and cp.longitude is not None and -90 <= cp.latitude <= 90 and -180 <= cp.longitude <= 180 and not (cp.latitude == 0 and cp.longitude == 0)]
         eventos = [self.evento_service.to_dict_completo(e) for e in self.evento_service.listar_por_trilha(id_trilha)]
-
-        # Avaliações são também os comentários públicos da trilha. Acrescentamos
-        # o nome do autor para a página web sem expor email ou senha.
         avaliacoes = []
         for avaliacao in self.avaliacao_service.listar_por_trilha(id_trilha):
-            dados = avaliacao.to_dict()
-            autor = Usuario.buscar_por_id(avaliacao.idUsuario)
-            dados["autor"] = autor.nome if autor else "Usuário"
+            dados = avaliacao.to_dict(); autor = Usuario.buscar_por_id(avaliacao.idUsuario)
+            dados["nomeUsuario"] = autor.nome if autor else "Usuário"
             avaliacoes.append(dados)
-        avaliacoes.sort(key=lambda item: item.get("data") or "", reverse=True)
-
+        checklist = [item.to_dict() for item in self.checklist_service.listar_por_trilha(id_trilha)]
         favorito = False
         usuario = self._usuario_logado()
         if usuario:
             favorito = any(item.idTrilha == id_trilha for item in self.favorito_service.listar_por_usuario(usuario.idUsuario))
-        return render_template("trail_detail.html", trilha=trilha, checkpoints=checkpoints, eventos=eventos, avaliacoes=avaliacoes, favorito=favorito, **self._contexto_base())
+        return render_template("trail_detail.html", trilha=trilha, checkpoints=checkpoints, eventos=eventos, avaliacoes=avaliacoes, checklist=checklist, favorito=favorito, google_maps_api_key=current_app.config.get("GOOGLE_MAPS_API_KEY", ""), **self._contexto_base())
 
     @login_web_obrigatorio
-    def comentar_trilha(self, id_trilha):
+    def criar_avaliacao(self, id_trilha):
         try:
-            comentario = (request.form.get("comentario") or "").strip()
-            if not comentario:
-                raise ValueError("escreva um comentário")
-            self.avaliacao_service.criar(session["id_usuario"], {
-                "idTrilha": id_trilha,
-                "nota": request.form.get("nota", 5),
-                "comentario": comentario,
-            })
-            flash("Comentário publicado.", "success")
-        except (ValueError, SQLAlchemyError) as erro:
-            if isinstance(erro, SQLAlchemyError):
-                db.session.rollback()
-                current_app.logger.exception("Falha ao publicar comentário na trilha %s", id_trilha)
-                flash("Não foi possível publicar o comentário.", "danger")
-            else:
-                flash(str(erro), "danger")
-        return redirect(url_for("web_bp.trilha", id_trilha=id_trilha) + "#comentarios")
+            self.avaliacao_service.criar(session["id_usuario"], {"idTrilha": id_trilha, "nota": request.form.get("nota"), "comentario": request.form.get("comentario", "").strip() or None})
+            flash("Avaliação publicada.", "success")
+        except ValueError as erro:
+            flash(str(erro), "danger")
+        return redirect(url_for("web_bp.trilha", id_trilha=id_trilha))
 
     @login_web_obrigatorio
     def alternar_favorito(self, id_trilha):
@@ -195,8 +165,12 @@ class WebController:
         return render_template("favorites.html", trilhas=[t for t in trilhas if t], **self._contexto_base())
 
     def eventos(self):
+        usuario = self._usuario_logado()
+        participando_ids = set()
+        if usuario:
+            participando_ids = {e.idEvento for e in self.evento_service.listar_por_usuario(usuario.idUsuario)}
         eventos = [self.evento_service.to_dict_completo(e) for e in self.evento_service.listar_todos()]
-        return render_template("events.html", eventos=eventos, trilhas=self.trilha_service.listar_todos(), **self._contexto_base())
+        return render_template("events.html", eventos=eventos, participando_ids=participando_ids, trilhas=self.trilha_service.listar_todos(), **self._contexto_base())
 
     @login_web_obrigatorio
     def criar_evento(self):
@@ -219,9 +193,28 @@ class WebController:
         return redirect(request.referrer or url_for("web_bp.eventos"))
 
     @login_web_obrigatorio
+    def sair_evento(self, id_evento):
+        self.evento_service.sair(id_evento, session["id_usuario"])
+        flash("Você saiu da expedição.", "info")
+        return redirect(request.referrer or url_for("web_bp.eventos"))
+
+    @login_web_obrigatorio
     def perfil(self):
-        usuario = self._usuario_logado(); favoritos = self.favorito_service.listar_por_usuario(usuario.idUsuario)
-        return render_template("profile.html", usuario=usuario, total_favoritos=len(favoritos), **self._contexto_base())
+        usuario = self._usuario_logado()
+        favoritos = self.favorito_service.listar_por_usuario(usuario.idUsuario)
+        minhas_expedicoes = [self.evento_service.to_dict_completo(e) for e in self.evento_service.listar_por_usuario(usuario.idUsuario)]
+        historicos = self.historico_service.listar_por_usuario(usuario.idUsuario)
+        historico_expedicoes = []
+        for h in historicos:
+            trilha = Trilha.buscar_por_id(h.idTrilha)
+            evento = None
+            if h.idEvento:
+                try:
+                    evento = self.evento_service.buscar_por_id(h.idEvento)
+                except ValueError:
+                    pass
+            historico_expedicoes.append({"historico": h.to_dict(), "trilha": trilha.to_dict() if trilha else None, "evento": evento.to_dict() if evento else None})
+        return render_template("profile.html", usuario=usuario, total_favoritos=len(favoritos), minhas_expedicoes=minhas_expedicoes, historico_expedicoes=historico_expedicoes, **self._contexto_base())
 
 
 controller = WebController()
@@ -234,10 +227,11 @@ web_bp.add_url_rule("/login", "login", controller.login, methods=["GET", "POST"]
 web_bp.add_url_rule("/cadastro", "cadastro", controller.cadastro, methods=["GET", "POST"])
 web_bp.add_url_rule("/logout", "logout", controller.logout, methods=["POST"])
 web_bp.add_url_rule("/trilhas/<int:id_trilha>", "trilha", controller.trilha, methods=["GET"])
-web_bp.add_url_rule("/trilhas/<int:id_trilha>/comentarios", "comentar_trilha", controller.comentar_trilha, methods=["POST"])
+web_bp.add_url_rule("/trilhas/<int:id_trilha>/avaliacoes", "criar_avaliacao", controller.criar_avaliacao, methods=["POST"])
 web_bp.add_url_rule("/trilhas/<int:id_trilha>/favorito", "alternar_favorito", controller.alternar_favorito, methods=["POST"])
 web_bp.add_url_rule("/favoritos", "favoritos", controller.favoritos, methods=["GET"])
 web_bp.add_url_rule("/eventos", "eventos", controller.eventos, methods=["GET"])
 web_bp.add_url_rule("/eventos", "criar_evento", controller.criar_evento, methods=["POST"])
 web_bp.add_url_rule("/eventos/<int:id_evento>/participar", "participar_evento", controller.participar_evento, methods=["POST"])
+web_bp.add_url_rule("/eventos/<int:id_evento>/sair", "sair_evento", controller.sair_evento, methods=["POST"])
 web_bp.add_url_rule("/perfil", "perfil", controller.perfil, methods=["GET"])
