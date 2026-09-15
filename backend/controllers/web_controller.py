@@ -7,6 +7,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from extensions import db
 from models.trilha_model import Trilha
 from models.usuario_model import Usuario
+from services.avaliacao_service import AvaliacaoService
 from services.casos_uso import CadastrarUsuarioService, LoginUsuarioService
 from services.checkpoint_service import CheckpointService
 from services.evento_service import EventoService
@@ -34,6 +35,7 @@ class WebController:
         self.checkpoint_service = CheckpointService()
         self.evento_service = EventoService()
         self.favorito_service = FavoritoService()
+        self.avaliacao_service = AvaliacaoService()
 
     @staticmethod
     def _usuario_logado():
@@ -49,7 +51,10 @@ class WebController:
             return None
 
     def _contexto_base(self):
-        return {"usuario_logado": self._usuario_logado()}
+        return {
+            "usuario_logado": self._usuario_logado(),
+            "google_maps_api_key": current_app.config.get("GOOGLE_MAPS_API_KEY", ""),
+        }
 
     def inicio(self):
         busca = (request.args.get("busca") or "").strip()
@@ -132,13 +137,46 @@ class WebController:
             db.session.rollback(); current_app.logger.exception("Falha ao carregar a trilha %s", id_trilha)
             flash("Não foi possível carregar essa trilha. Verifique o banco de dados e tente novamente.", "danger")
             return redirect(url_for("web_bp.inicio"))
+
         checkpoints = [cp.to_dict() for cp in self.checkpoint_service.listar_por_trilha(id_trilha) if cp.latitude is not None and cp.longitude is not None and -90 <= cp.latitude <= 90 and -180 <= cp.longitude <= 180 and not (cp.latitude == 0 and cp.longitude == 0)]
         eventos = [self.evento_service.to_dict_completo(e) for e in self.evento_service.listar_por_trilha(id_trilha)]
+
+        # Avaliações são também os comentários públicos da trilha. Acrescentamos
+        # o nome do autor para a página web sem expor email ou senha.
+        avaliacoes = []
+        for avaliacao in self.avaliacao_service.listar_por_trilha(id_trilha):
+            dados = avaliacao.to_dict()
+            autor = Usuario.buscar_por_id(avaliacao.idUsuario)
+            dados["autor"] = autor.nome if autor else "Usuário"
+            avaliacoes.append(dados)
+        avaliacoes.sort(key=lambda item: item.get("data") or "", reverse=True)
+
         favorito = False
         usuario = self._usuario_logado()
         if usuario:
             favorito = any(item.idTrilha == id_trilha for item in self.favorito_service.listar_por_usuario(usuario.idUsuario))
-        return render_template("trail_detail.html", trilha=trilha, checkpoints=checkpoints, eventos=eventos, favorito=favorito, **self._contexto_base())
+        return render_template("trail_detail.html", trilha=trilha, checkpoints=checkpoints, eventos=eventos, avaliacoes=avaliacoes, favorito=favorito, **self._contexto_base())
+
+    @login_web_obrigatorio
+    def comentar_trilha(self, id_trilha):
+        try:
+            comentario = (request.form.get("comentario") or "").strip()
+            if not comentario:
+                raise ValueError("escreva um comentário")
+            self.avaliacao_service.criar(session["id_usuario"], {
+                "idTrilha": id_trilha,
+                "nota": request.form.get("nota", 5),
+                "comentario": comentario,
+            })
+            flash("Comentário publicado.", "success")
+        except (ValueError, SQLAlchemyError) as erro:
+            if isinstance(erro, SQLAlchemyError):
+                db.session.rollback()
+                current_app.logger.exception("Falha ao publicar comentário na trilha %s", id_trilha)
+                flash("Não foi possível publicar o comentário.", "danger")
+            else:
+                flash(str(erro), "danger")
+        return redirect(url_for("web_bp.trilha", id_trilha=id_trilha) + "#comentarios")
 
     @login_web_obrigatorio
     def alternar_favorito(self, id_trilha):
@@ -196,6 +234,7 @@ web_bp.add_url_rule("/login", "login", controller.login, methods=["GET", "POST"]
 web_bp.add_url_rule("/cadastro", "cadastro", controller.cadastro, methods=["GET", "POST"])
 web_bp.add_url_rule("/logout", "logout", controller.logout, methods=["POST"])
 web_bp.add_url_rule("/trilhas/<int:id_trilha>", "trilha", controller.trilha, methods=["GET"])
+web_bp.add_url_rule("/trilhas/<int:id_trilha>/comentarios", "comentar_trilha", controller.comentar_trilha, methods=["POST"])
 web_bp.add_url_rule("/trilhas/<int:id_trilha>/favorito", "alternar_favorito", controller.alternar_favorito, methods=["POST"])
 web_bp.add_url_rule("/favoritos", "favoritos", controller.favoritos, methods=["GET"])
 web_bp.add_url_rule("/eventos", "eventos", controller.eventos, methods=["GET"])
