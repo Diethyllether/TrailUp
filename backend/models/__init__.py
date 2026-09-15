@@ -12,6 +12,7 @@ from models.evento_model import Evento, EventoTrilha, ParticipanteEvento
 from models.notificacao_model import Notificacao
 from models.denuncia_model import Denuncia
 from models.historico_model import HistoricoTrilha, RegistroRealizado, FotoRegistro
+from models.checklist_item_model import ChecklistItem
 
 __all__ = [
     "Usuario",
@@ -28,4 +29,5 @@ __all__ = [
     "HistoricoTrilha",
     "RegistroRealizado",
     "FotoRegistro",
+    "ChecklistItem",
 ]
