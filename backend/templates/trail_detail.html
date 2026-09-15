@@ -37,110 +37,39 @@
 <section class="section">
   <div class="container">
     <div class="section-header">
-      <div>
-        <div class="eyebrow">Rota</div>
-        <h2>Mapa da trilha</h2>
-      </div>
+      <div><div class="eyebrow">Rota</div><h2>Traçado da trilha</h2></div>
       <span class="muted">{{ checkpoints|length }} ponto(s) GPS</span>
     </div>
-    {% if google_maps_api_key and checkpoints %}
-      <div id="trail-map" class="map"></div>
-    {% elif not google_maps_api_key %}
-      <div class="map-placeholder">Defina <code>GOOGLE_MAPS_API_KEY</code> no ambiente para carregar o Google Maps.</div>
+    {% if checkpoints %}
+      <div class="panel" style="padding:16px">
+        <svg id="trail-route" viewBox="0 0 1000 360" role="img" aria-label="Traçado da rota da trilha" style="display:block;width:100%;height:auto;min-height:260px"></svg>
+      </div>
     {% else %}
       <div class="map-placeholder">Esta trilha ainda não possui checkpoints GPS válidos.</div>
     {% endif %}
   </div>
 </section>
 
-<section class="section">
-  <div class="container">
-    <div class="section-header">
-      <div>
-        <div class="eyebrow">Expedições</div>
-        <h2>Eventos nesta trilha</h2>
-      </div>
-    </div>
-    {% if eventos %}
-      <div class="event-list">
-        {% for evento in eventos %}
-          <div class="event-row">
-            <div>
-              <strong>{{ evento.titulo }}</strong>
-              <p class="muted">{{ evento.data or 'Data a definir' }} · {{ evento.tipo|capitalize }} · {{ evento.participantesAtuais }} participante(s){% if evento.vagas %} / {{ evento.vagas }} vagas{% endif %}</p>
-            </div>
-            {% if usuario_logado %}
-              <form method="post" action="{{ url_for('web_bp.participar_evento', id_evento=evento.idEvento) }}">
-                <button class="button primary" type="submit">Participar</button>
-              </form>
-            {% else %}
-              <a class="button ghost" href="{{ url_for('web_bp.login') }}">Entrar</a>
-            {% endif %}
-          </div>
-        {% endfor %}
-      </div>
-    {% else %}
-      <div class="empty">Nenhuma expedição vinculada a esta trilha ainda.</div>
-    {% endif %}
-  </div>
-</section>
+<section class="section"><div class="container"><div class="section-header"><div><div class="eyebrow">Expedições</div><h2>Eventos nesta trilha</h2></div></div>
+{% if eventos %}<div class="event-list">{% for evento in eventos %}<div class="event-row"><div><strong>{{ evento.titulo }}</strong><p class="muted">{{ evento.data or 'Data a definir' }} · {{ evento.tipo|capitalize }} · {{ evento.participantesAtuais }} participante(s){% if evento.vagas %} / {{ evento.vagas }} vagas{% endif %}</p></div>{% if usuario_logado %}<form method="post" action="{{ url_for('web_bp.participar_evento', id_evento=evento.idEvento) }}"><button class="button primary" type="submit">Participar</button></form>{% else %}<a class="button ghost" href="{{ url_for('web_bp.login') }}">Entrar</a>{% endif %}</div>{% endfor %}</div>{% else %}<div class="empty">Nenhuma expedição vinculada a esta trilha ainda.</div>{% endif %}
+</div></section>
 {% endblock %}
 
 {% block scripts %}
-{% if google_maps_api_key and checkpoints %}
+{% if checkpoints %}
 <script>
-  const trailPoints = {{ checkpoints|tojson }}
-    .map(p => ({ lat: Number(p.latitude), lng: Number(p.longitude) }))
-    .filter(p => Number.isFinite(p.lat) && Number.isFinite(p.lng));
-
-  function initTrailMap() {
-    if (!trailPoints.length) return;
-
-    const map = new google.maps.Map(document.getElementById('trail-map'), {
-      center: trailPoints[0],
-      zoom: 15,
-      mapTypeId: 'terrain',
-      mapTypeControl: true,
-      streetViewControl: false,
-      fullscreenControl: true
-    });
-
-    // A rota é uma Polyline: os checkpoints são ligados na ordem em que
-    // vieram do backend, formando o traçado visível da trilha.
-    const routePolyline = new google.maps.Polyline({
-      path: trailPoints,
-      geodesic: true,
-      strokeColor: '#ff6b2c',
-      strokeOpacity: 1,
-      strokeWeight: 5,
-      clickable: false,
-      map: map
-    });
-
-    new google.maps.Marker({ position: trailPoints[0], map, label: 'I', title: 'Início' });
-
-    if (trailPoints.length > 1) {
-      new google.maps.Marker({
-        position: trailPoints[trailPoints.length - 1],
-        map,
-        label: 'F',
-        title: 'Fim'
-      });
-
-      trailPoints.slice(1, -1).forEach((point, index) => {
-        new google.maps.Marker({
-          position: point,
-          map,
-          title: `Checkpoint ${index + 1}`
-        });
-      });
-
-      const bounds = new google.maps.LatLngBounds();
-      trailPoints.forEach(point => bounds.extend(point));
-      map.fitBounds(bounds, 42);
-    }
-  }
+(() => {
+  const points = {{ checkpoints|tojson }}.map(p => ({lat:Number(p.latitude), lng:Number(p.longitude)})).filter(p => Number.isFinite(p.lat) && Number.isFinite(p.lng));
+  if (!points.length) return;
+  const svg = document.getElementById('trail-route');
+  const NS='http://www.w3.org/2000/svg', pad=42, w=1000, h=360;
+  const lats=points.map(p=>p.lat), lngs=points.map(p=>p.lng);
+  const minLat=Math.min(...lats), maxLat=Math.max(...lats), minLng=Math.min(...lngs), maxLng=Math.max(...lngs);
+  const dx=Math.max(maxLng-minLng, 0.000001), dy=Math.max(maxLat-minLat, 0.000001);
+  const xy=points.map(p=>({x:pad+((p.lng-minLng)/dx)*(w-pad*2), y:h-pad-((p.lat-minLat)/dy)*(h-pad*2)}));
+  const line=document.createElementNS(NS,'polyline'); line.setAttribute('points',xy.map(p=>`${p.x},${p.y}`).join(' ')); line.setAttribute('fill','none'); line.setAttribute('stroke','#3DB861'); line.setAttribute('stroke-width','8'); line.setAttribute('stroke-linecap','round'); line.setAttribute('stroke-linejoin','round'); svg.appendChild(line);
+  xy.forEach((p,i)=>{ const c=document.createElementNS(NS,'circle'); c.setAttribute('cx',p.x); c.setAttribute('cy',p.y); c.setAttribute('r',i===0||i===xy.length-1?'12':'7'); c.setAttribute('fill',i===0?'#3DB861':i===xy.length-1?'#EB9E2E':'#F2F5EB'); c.setAttribute('stroke','#0F140F'); c.setAttribute('stroke-width','4'); svg.appendChild(c); });
+})();
 </script>
-<script async defer src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key|e }}&callback=initTrailMap"></script>
 {% endif %}
 {% endblock %}
