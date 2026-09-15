@@ -137,7 +137,7 @@ class WebController:
         usuario = self._usuario_logado()
         if usuario:
             favorito = any(item.idTrilha == id_trilha for item in self.favorito_service.listar_por_usuario(usuario.idUsuario))
-        return render_template("trail_detail.html", trilha=trilha, checkpoints=checkpoints, eventos=eventos, avaliacoes=avaliacoes, checklist=checklist, favorito=favorito, google_maps_api_key=current_app.config.get("GOOGLE_MAPS_API_KEY", ""), **self._contexto_base())
+        return render_template("trail_detail.html", trilha=trilha, checkpoints=checkpoints, eventos=eventos, avaliacoes=avaliacoes, checklist=checklist, favorito=favorito, **self._contexto_base())
 
     @login_web_obrigatorio
     def criar_avaliacao(self, id_trilha):
