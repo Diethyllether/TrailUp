@@ -1,26 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Perfil · TrailUp{% endblock %}
 {% block content %}
-<section class="hero">
-  <div class="container detail-grid">
-    <div>
-      <div class="eyebrow">Perfil</div>
-      <h1 style="font-size:clamp(2.6rem,5vw,4.8rem)">{{ usuario.nome }}</h1>
-      <p class="lead">{{ usuario.email }}</p>
-      <div class="stats">
-        <div class="stat"><strong>{{ total_favoritos }}</strong><span class="muted">trilhas favoritas</span></div>
-        <div class="stat"><strong>{{ usuario.dataCadastro.strftime('%d/%m/%Y') if usuario.dataCadastro else '—' }}</strong><span class="muted">membro desde</span></div>
-        <div class="stat"><strong>Web</strong><span class="muted">plataforma atual</span></div>
-      </div>
-    </div>
-    <div class="panel">
-      <h3>Atalhos</h3>
-      <div class="form-grid">
-        <a class="button ghost" href="{{ url_for('web_bp.favoritos') }}">Ver favoritos</a>
-        <a class="button ghost" href="{{ url_for('web_bp.eventos') }}">Ver expedições</a>
-        <a class="button ghost" href="{{ url_for('web_bp.inicio') }}">Explorar trilhas</a>
-      </div>
-    </div>
-  </div>
-</section>
+<section class="hero"><div class="container detail-grid"><div><div class="eyebrow">Perfil</div><h1 style="font-size:clamp(2.6rem,5vw,4.8rem)">{{ usuario.nome }}</h1><p class="lead">{{ usuario.email }}</p><div class="stats"><div class="stat"><strong>{{ total_favoritos }}</strong><span class="muted">trilhas favoritas</span></div><div class="stat"><strong>{{ minhas_expedicoes|length }}</strong><span class="muted">expedições</span></div><div class="stat"><strong>{{ historico_expedicoes|length }}</strong><span class="muted">trilhas realizadas</span></div></div></div><div class="panel"><h3>Atalhos</h3><div class="form-grid"><a class="button ghost" href="{{ url_for('web_bp.favoritos') }}">Ver favoritos</a><a class="button ghost" href="{{ url_for('web_bp.eventos') }}">Ver expedições</a><a class="button ghost" href="{{ url_for('web_bp.inicio') }}">Explorar trilhas</a></div></div></div></section>
+<section class="section"><div class="container"><div class="section-header"><div><div class="eyebrow">Participação</div><h2>Minhas expedições</h2></div></div>{% if minhas_expedicoes %}<div class="event-list">{% for evento in minhas_expedicoes %}<article class="event-row"><div><strong>{{ evento.titulo }}</strong><span class="badge" style="margin-left:8px">✓ Participando</span><p class="muted">{{ evento.data or 'Data a definir' }} · {{ evento.tipo|capitalize }} · {{ evento.participantesAtuais }} participante(s){% if evento.vagas %} / {{ evento.vagas }} vagas{% endif %}</p>{% if evento.descricao %}<p>{{ evento.descricao }}</p>{% endif %}</div><form method="post" action="{{ url_for('web_bp.sair_evento', id_evento=evento.idEvento) }}"><button class="button ghost" type="submit">Sair</button></form></article>{% endfor %}</div>{% else %}<div class="empty">Você ainda não participa de nenhuma expedição.</div>{% endif %}</div></section>
+<section class="section"><div class="container"><div class="section-header"><div><div class="eyebrow">Histórico</div><h2>Trilhas e expedições realizadas</h2></div></div>{% if historico_expedicoes %}<div class="event-list">{% for item in historico_expedicoes %}<article class="event-row"><div><strong>{% if item.evento %}{{ item.evento.titulo }}{% elif item.trilha %}{{ item.trilha.nome }}{% else %}Trilha realizada{% endif %}</strong><p class="muted">{{ item.historico.dataRealizacao or 'Data não informada' }}{% if item.trilha %} · {{ item.trilha.nome }}{% endif %}{% if item.historico.tempo %} · {{ item.historico.tempo|round|int }} min{% endif %}</p>{% if item.historico.avaliacaoPessoal %}<span class="badge">★ {{ item.historico.avaliacaoPessoal }}/5</span>{% endif %}</div></article>{% endfor %}</div>{% else %}<div class="empty">Nenhuma trilha concluída registrada no histórico.</div>{% endif %}</div></section>
 {% endblock %}
