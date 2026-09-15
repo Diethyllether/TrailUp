@@ -1,6 +1,7 @@
 from extensions import db
 from models.evento_model import Evento, EventoTrilha, ParticipanteEvento
 
+
 class EventoRepository:
     """Acesso especializado a vínculos, participantes e consultas de eventos."""
 
@@ -22,6 +23,18 @@ class EventoRepository:
         return (
             Evento.query.join(EventoTrilha, EventoTrilha.idEvento == Evento.idEvento)
             .filter(EventoTrilha.idTrilha == id_trilha)
+            .all()
+        )
+
+    def listar_por_usuario(self, id_usuario):
+        """Expedições das quais o usuário é participante."""
+        return (
+            Evento.query.join(
+                ParticipanteEvento,
+                ParticipanteEvento.idEvento == Evento.idEvento,
+            )
+            .filter(ParticipanteEvento.idUsuario == id_usuario)
+            .order_by(Evento.data.desc(), Evento.horarioSaida.desc())
             .all()
         )
 
