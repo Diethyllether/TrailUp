@@ -1,78 +1,8 @@
 {% extends "base.html" %}
 {% block title %}Expedições · TrailUp{% endblock %}
 {% block content %}
-<section class="hero">
-  <div class="container detail-grid">
-    <div>
-      <div class="eyebrow">Comunidade</div>
-      <h1 style="font-size:clamp(2.6rem,5vw,4.8rem)">Expedições</h1>
-      <p class="lead">Encontre grupos para fazer trilhas ou crie uma nova expedição vinculada a uma rota existente.</p>
-    </div>
-    {% if usuario_logado %}
-      <div class="panel">
-        <h3>Criar expedição</h3>
-        <form method="post" action="{{ url_for('web_bp.criar_evento') }}" class="form-grid">
-          <label>Título<input name="titulo" required></label>
-          <label>Trilha
-            <select name="idTrilha" required>
-              <option value="">Selecione</option>
-              {% for trilha in trilhas %}<option value="{{ trilha.idTrilha }}">{{ trilha.nome }}</option>{% endfor %}
-            </select>
-          </label>
-          <div class="form-grid two">
-            <label>Data<input type="date" name="data"></label>
-            <label>Horário<input type="time" name="horario"></label>
-          </div>
-          <div class="form-grid two">
-            <label>Tipo
-              <select name="tipo"><option value="GRUPO">Grupo</option><option value="INDIVIDUAL">Individual</option></select>
-            </label>
-            <label>Vagas<input type="number" name="vagas" min="1"></label>
-          </div>
-          <label>Descrição<textarea name="descricao" placeholder="Informações importantes para os participantes"></textarea></label>
-          <label style="display:flex;grid-template-columns:auto 1fr;align-items:center"><input type="checkbox" name="imediata" style="width:auto"> Expedição imediata</label>
-          <button class="button primary" type="submit">Criar expedição</button>
-        </form>
-      </div>
-    {% else %}
-      <div class="panel">
-        <h3>Quer organizar uma expedição?</h3>
-        <p class="muted">Entre na sua conta para criar eventos e participar de grupos.</p>
-        <a class="button primary" href="{{ url_for('web_bp.login') }}">Entrar</a>
-      </div>
-    {% endif %}
-  </div>
-</section>
-
-<section class="section">
-  <div class="container">
-    <div class="section-header"><div><div class="eyebrow">Agenda</div><h2>Eventos disponíveis</h2></div></div>
-    {% if eventos %}
-      <div class="event-list">
-        {% for evento in eventos %}
-          <article class="event-row">
-            <div>
-              <strong>{{ evento.titulo }}</strong>
-              <p class="muted">{{ evento.data or 'Data a definir' }}{% if evento.horarioSaida %} · {{ evento.horarioSaida[11:16] }}{% endif %} · {{ evento.tipo|capitalize }}</p>
-              {% if evento.descricao %}<p>{{ evento.descricao }}</p>{% endif %}
-              <div class="meta" style="margin-top:8px">
-                <span class="badge">{{ evento.participantesAtuais }} participante(s){% if evento.vagas %} / {{ evento.vagas }} vagas{% endif %}</span>
-                {% if evento.nomeCriador %}<span class="badge">por {{ evento.nomeCriador }}</span>{% endif %}
-              </div>
-            </div>
-            {% if usuario_logado %}
-              <form method="post" action="{{ url_for('web_bp.participar_evento', id_evento=evento.idEvento) }}">
-                <button class="button primary" type="submit">Participar</button>
-              </form>
-            {% else %}
-              <a class="button ghost" href="{{ url_for('web_bp.login') }}">Entrar</a>
-            {% endif %}
-          </article>
-        {% endfor %}
-      </div>
-    {% else %}
-      <div class="empty">Nenhuma expedição cadastrada.</div>
-    {% endif %}
-  </div>
-</section>
+<section class="hero"><div class="container detail-grid"><div><div class="eyebrow">Comunidade</div><h1 style="font-size:clamp(2.6rem,5vw,4.8rem)">Expedições</h1><p class="lead">Encontre grupos para fazer trilhas ou crie uma nova expedição vinculada a uma rota existente.</p></div>
+{% if usuario_logado %}<div class="panel"><h3>Criar expedição</h3><form method="post" action="{{ url_for('web_bp.criar_evento') }}" class="form-grid"><label>Título<input name="titulo" required></label><label>Trilha<select name="idTrilha" required><option value="">Selecione</option>{% for trilha in trilhas %}<option value="{{ trilha.idTrilha }}">{{ trilha.nome }}</option>{% endfor %}</select></label><div class="form-grid two"><label>Data<input type="date" name="data"></label><label>Horário<input type="time" name="horario"></label></div><div class="form-grid two"><label>Tipo<select name="tipo"><option value="GRUPO">Grupo</option><option value="INDIVIDUAL">Individual</option></select></label><label>Vagas<input type="number" name="vagas" min="1"></label></div><label>Descrição<textarea name="descricao"></textarea></label><label style="display:flex;grid-template-columns:auto 1fr;align-items:center"><input type="checkbox" name="imediata" style="width:auto"> Expedição imediata</label><button class="button primary" type="submit">Criar expedição</button></form></div>{% endif %}</div></section>
+<section class="section"><div class="container"><div class="section-header"><div><div class="eyebrow">Agenda</div><h2>Eventos disponíveis</h2></div></div>
+{% if eventos %}<div class="event-list">{% for evento in eventos %}<article class="event-row"><div><strong>{{ evento.titulo }}</strong>{% if evento.idEvento in participando_ids %}<span class="badge" style="margin-left:8px">✓ Você participa</span>{% endif %}<p class="muted">{{ evento.data or 'Data a definir' }}{% if evento.horarioSaida %} · {{ evento.horarioSaida[11:16] }}{% endif %} · {{ evento.tipo|capitalize }}</p>{% if evento.descricao %}<p>{{ evento.descricao }}</p>{% endif %}<div class="meta"><span class="badge">{{ evento.participantesAtuais }} participante(s){% if evento.vagas %} / {{ evento.vagas }} vagas{% endif %}</span>{% if evento.nomeCriador %}<span class="badge">por {{ evento.nomeCriador }}</span>{% endif %}</div></div>{% if usuario_logado %}{% if evento.idEvento in participando_ids %}<form method="post" action="{{ url_for('web_bp.sair_evento', id_evento=evento.idEvento) }}"><button class="button ghost" type="submit">Sair</button></form>{% else %}<form method="post" action="{{ url_for('web_bp.participar_evento', id_evento=evento.idEvento) }}"><button class="button primary" type="submit">Participar</button></form>{% endif %}{% else %}<a class="button ghost" href="{{ url_for('web_bp.login') }}">Entrar</a>{% endif %}</article>{% endfor %}</div>{% else %}<div class="empty">Nenhuma expedição cadastrada.</div>{% endif %}</div></section>
 {% endblock %}
