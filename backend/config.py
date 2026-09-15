@@ -10,8 +10,4 @@ class Config:
     SECRET_KEY = os.environ.get("SECRET_KEY", "troque-esta-chave-em-producao")
     TOKEN_EXP_MINUTES = int(os.environ.get("TOKEN_EXP_MINUTES", "1440"))
 
-    # Usada apenas no frontend web Jinja2 para carregar a API JavaScript do
-    # Google Maps. Em produção, restrinja a chave ao domínio do TrailUp.
-    GOOGLE_MAPS_API_KEY = os.environ.get("GOOGLE_MAPS_API_KEY", "")
-
     DEBUG = os.environ.get("FLASK_DEBUG", "true").lower() == "true"
