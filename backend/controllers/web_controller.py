@@ -5,9 +5,6 @@ from flask import Blueprint, current_app, flash, redirect, render_template, requ
 from sqlalchemy.exc import SQLAlchemyError
 
 from extensions import db
-from models.trilha_model import Trilha
-from models.usuario_model import Usuario
-from services.casos_uso import CadastrarUsuarioService, LoginUsuarioService
 from services.avaliacao_service import AvaliacaoService
 from services.checklist_service import ChecklistService
 from services.checkpoint_service import CheckpointService
@@ -15,6 +12,8 @@ from services.evento_service import EventoService
 from services.favorito_service import FavoritoService
 from services.historico_service import HistoricoService
 from services.trilha_service import TrilhaService
+from services.usuario_service import UsuarioService
+from services.denuncia_service import DenunciaService
 
 web_bp = Blueprint("web_bp", __name__)
 
@@ -30,24 +29,39 @@ def login_web_obrigatorio(func):
 
 
 class WebController:
-    def __init__(self):
-        self.login_service = LoginUsuarioService()
-        self.cadastrar_service = CadastrarUsuarioService()
-        self.trilha_service = TrilhaService()
-        self.checkpoint_service = CheckpointService()
-        self.evento_service = EventoService()
-        self.favorito_service = FavoritoService()
-        self.avaliacao_service = AvaliacaoService()
-        self.historico_service = HistoricoService()
-        self.checklist_service = ChecklistService()
+    def __init__(
+        self,
+        usuario_service=None,
+        trilha_service=None,
+        checkpoint_service=None,
+        evento_service=None,
+        favorito_service=None,
+        avaliacao_service=None,
+        historico_service=None,
+        checklist_service=None,
+        denuncia_service=None,
+    ):
+        self.usuario_service = usuario_service or UsuarioService()
+        self.login_service = self.usuario_service.login_service
+        self.cadastrar_service = self.usuario_service.cadastrar_service
+        self.trilha_service = trilha_service or TrilhaService()
+        self.checkpoint_service = checkpoint_service or CheckpointService()
+        self.evento_service = evento_service or EventoService()
+        self.favorito_service = favorito_service or FavoritoService()
+        self.avaliacao_service = avaliacao_service or AvaliacaoService()
+        self.historico_service = historico_service or HistoricoService()
+        self.checklist_service = checklist_service or ChecklistService()
+        self.denuncia_service = denuncia_service or DenunciaService()
 
-    @staticmethod
-    def _usuario_logado():
+    def _usuario_logado(self):
         id_usuario = session.get("id_usuario")
         if not id_usuario:
             return None
         try:
-            return Usuario.buscar_por_id(id_usuario)
+            return self.usuario_service.buscar_por_id(id_usuario)
+        except ValueError:
+            session.clear()
+            return None
         except SQLAlchemyError:
             db.session.rollback()
             current_app.logger.exception("Falha ao carregar o usuário da sessão")
@@ -60,9 +74,18 @@ class WebController:
     def inicio(self):
         busca = (request.args.get("busca") or "").strip()
         dificuldade = (request.args.get("dificuldade") or "").strip() or None
+        ordenacao = request.args.get("ordenar", "")
+        distancia_max = request.args.get("distancia_max", type=float)
+        duracao_max = request.args.get("duracao_max", type=float)
+        nota_min = request.args.get("nota_min", type=float)
+        latitude = request.args.get("lat", type=float)
+        longitude = request.args.get("lon", type=float)
         trilhas, eventos, erro_banco = [], [], False
         try:
             trilhas = self.trilha_service.buscar(busca=busca or None, dificuldade=dificuldade)
+            if ordenacao in ("distancia", "duracao", "nota") or any(x is not None for x in (distancia_max, duracao_max, nota_min)):
+                ids = {t.idTrilha for t in trilhas}
+                trilhas = [t for t in self.trilha_service.listar_ordenadas(ordenacao or None, distancia_max, duracao_max, nota_min) if t.idTrilha in ids]
             eventos = self.evento_service.listar_todos()
         except SQLAlchemyError:
             db.session.rollback(); erro_banco = True
@@ -76,7 +99,8 @@ class WebController:
                 db.session.rollback(); erro_banco = True
         if erro_banco:
             flash("Não foi possível carregar todos os dados. Verifique a conexão com o banco.", "danger")
-        return render_template("home.html", trilhas=trilhas, eventos=eventos[:6], favoritos_ids=favoritos_ids, busca=busca, dificuldade=dificuldade or "", **self._contexto_base())
+        proximas = self.trilha_service.proximas(latitude, longitude) if latitude is not None and longitude is not None and -90 <= latitude <= 90 and -180 <= longitude <= 180 else []
+        return render_template("home.html", trilhas=trilhas, proximas=proximas, medias=self.trilha_service.medias_avaliacao(), eventos=eventos[:6], favoritos_ids=favoritos_ids, busca=busca, dificuldade=dificuldade or "", ordenacao=ordenacao, distancia_max=distancia_max or "", duracao_max=duracao_max or "", nota_min=nota_min or "", **self._contexto_base())
 
     def mapa(self):
         eventos = []
@@ -95,7 +119,7 @@ class WebController:
                 return redirect(url_for("web_bp.inicio"))
             return render_template("login.html", **self._contexto_base())
         try:
-            _, usuario = self.login_service.executar(request.form.get("email", "").strip(), request.form.get("senha", ""))
+            usuario = self.login_service.executar(request.form.get("email", "").strip(), request.form.get("senha", ""))
             session.clear(); session["id_usuario"] = usuario.idUsuario
             flash(f"Bem-vindo, {usuario.nome}!", "success")
             destino = request.args.get("proxima")
@@ -128,8 +152,14 @@ class WebController:
         checkpoints = [cp.to_dict() for cp in self.checkpoint_service.listar_por_trilha(id_trilha) if cp.latitude is not None and cp.longitude is not None and -90 <= cp.latitude <= 90 and -180 <= cp.longitude <= 180 and not (cp.latitude == 0 and cp.longitude == 0)]
         eventos = [self.evento_service.to_dict_completo(e) for e in self.evento_service.listar_por_trilha(id_trilha)]
         avaliacoes = []
+        media_trilha = self.avaliacao_service.media_por_trilha(id_trilha)
+        minhas_avaliacoes = {a.idAvaliacao for a in self.avaliacao_service.listar_por_usuario(session.get("id_usuario"))} if session.get("id_usuario") else set()
         for avaliacao in self.avaliacao_service.listar_por_trilha(id_trilha):
-            dados = avaliacao.to_dict(); autor = Usuario.buscar_por_id(avaliacao.idUsuario)
+            dados = avaliacao.to_dict()
+            try:
+                autor = self.usuario_service.buscar_por_id(avaliacao.idUsuario)
+            except ValueError:
+                autor = None
             dados["nomeUsuario"] = autor.nome if autor else "Usuário"
             avaliacoes.append(dados)
         checklist = [item.to_dict() for item in self.checklist_service.listar_por_trilha(id_trilha)]
@@ -137,7 +167,29 @@ class WebController:
         usuario = self._usuario_logado()
         if usuario:
             favorito = any(item.idTrilha == id_trilha for item in self.favorito_service.listar_por_usuario(usuario.idUsuario))
-        return render_template("trail_detail.html", trilha=trilha, checkpoints=checkpoints, eventos=eventos, avaliacoes=avaliacoes, checklist=checklist, favorito=favorito, **self._contexto_base())
+        return render_template("trail_detail.html", trilha=trilha, media_trilha=media_trilha, minhas_avaliacoes=minhas_avaliacoes, checkpoints=checkpoints, eventos=eventos, avaliacoes=avaliacoes, checklist=checklist, favorito=favorito, **self._contexto_base())
+
+    @login_web_obrigatorio
+    def atualizar_avaliacao(self, id_avaliacao):
+        try:
+            avaliacao = self.avaliacao_service.atualizar(id_avaliacao, session["id_usuario"], {"nota": request.form.get("nota"), "comentario": request.form.get("comentario", "").strip() or None})
+            flash("Avaliação atualizada.", "success")
+            return redirect(url_for("web_bp.trilha", id_trilha=avaliacao.idTrilha) + "#comentarios")
+        except (ValueError, PermissionError) as erro:
+            flash(str(erro), "danger")
+            return redirect(request.referrer or url_for("web_bp.inicio"))
+
+    @login_web_obrigatorio
+    def excluir_avaliacao(self, id_avaliacao):
+        try:
+            avaliacao = self.avaliacao_service.buscar_por_id(id_avaliacao)
+            id_trilha = avaliacao.idTrilha
+            self.avaliacao_service.deletar(id_avaliacao, session["id_usuario"])
+            flash("Avaliação removida.", "success")
+            return redirect(url_for("web_bp.trilha", id_trilha=id_trilha) + "#comentarios")
+        except (ValueError, PermissionError) as erro:
+            flash(str(erro), "danger")
+            return redirect(request.referrer or url_for("web_bp.inicio"))
 
     @login_web_obrigatorio
     def criar_avaliacao(self, id_trilha):
@@ -161,7 +213,12 @@ class WebController:
     @login_web_obrigatorio
     def favoritos(self):
         favoritos = self.favorito_service.listar_por_usuario(session["id_usuario"])
-        trilhas = [Trilha.buscar_por_id(item.idTrilha) for item in favoritos]
+        trilhas = []
+        for item in favoritos:
+            try:
+                trilhas.append(self.trilha_service.buscar_por_id(item.idTrilha))
+            except ValueError:
+                continue
         return render_template("favorites.html", trilhas=[t for t in trilhas if t], **self._contexto_base())
 
     def eventos(self):
@@ -199,14 +256,46 @@ class WebController:
         return redirect(request.referrer or url_for("web_bp.eventos"))
 
     @login_web_obrigatorio
+    def comentar_evento(self, id_evento):
+        try:
+            self.evento_service.comentar(id_evento, session["id_usuario"], request.form.get("texto"))
+            flash("Comentário enviado.", "success")
+        except (ValueError, PermissionError) as erro:
+            flash(str(erro), "danger")
+        return redirect(url_for("web_bp.eventos") + f"#evento-{id_evento}")
+
+    @login_web_obrigatorio
+    def denunciar(self, categoria=None, id_alvo=None):
+        try:
+            dados = {"categoria": categoria or request.form.get("categoria", "OUTRO"), "descricao": request.form.get("descricao")}
+            if categoria == "EVENTO": dados["idEvento"] = id_alvo
+            if categoria == "TRILHA": dados["idTrilha"] = id_alvo
+            self.denuncia_service.criar(session["id_usuario"], dados)
+            flash("Relato enviado para análise.", "success")
+        except ValueError as erro:
+            flash(str(erro), "danger")
+        return redirect(request.referrer or url_for("web_bp.inicio"))
+
+    @login_web_obrigatorio
     def perfil(self):
+        if request.method == "POST":
+            try:
+                self.usuario_service.atualizar_perfil(session["id_usuario"], {"nome": request.form.get("nome", "").strip(), "email": request.form.get("email", "").strip(), "fotoPerfil": request.form.get("fotoPerfil", "").strip() or None})
+                flash("Perfil atualizado.", "success")
+                return redirect(url_for("web_bp.perfil"))
+            except ValueError as erro:
+                flash(str(erro), "danger")
+                return redirect(url_for("web_bp.perfil"))
         usuario = self._usuario_logado()
         favoritos = self.favorito_service.listar_por_usuario(usuario.idUsuario)
         minhas_expedicoes = [self.evento_service.to_dict_completo(e) for e in self.evento_service.listar_por_usuario(usuario.idUsuario)]
         historicos = self.historico_service.listar_por_usuario(usuario.idUsuario)
         historico_expedicoes = []
         for h in historicos:
-            trilha = Trilha.buscar_por_id(h.idTrilha)
+            try:
+                trilha = self.trilha_service.buscar_por_id(h.idTrilha)
+            except ValueError:
+                trilha = None
             evento = None
             if h.idEvento:
                 try:
@@ -228,10 +317,16 @@ web_bp.add_url_rule("/cadastro", "cadastro", controller.cadastro, methods=["GET"
 web_bp.add_url_rule("/logout", "logout", controller.logout, methods=["POST"])
 web_bp.add_url_rule("/trilhas/<int:id_trilha>", "trilha", controller.trilha, methods=["GET"])
 web_bp.add_url_rule("/trilhas/<int:id_trilha>/avaliacoes", "criar_avaliacao", controller.criar_avaliacao, methods=["POST"])
+web_bp.add_url_rule("/avaliacoes/<int:id_avaliacao>/editar", "atualizar_avaliacao", controller.atualizar_avaliacao, methods=["POST"])
+web_bp.add_url_rule("/avaliacoes/<int:id_avaliacao>/excluir", "excluir_avaliacao", controller.excluir_avaliacao, methods=["POST"])
 web_bp.add_url_rule("/trilhas/<int:id_trilha>/favorito", "alternar_favorito", controller.alternar_favorito, methods=["POST"])
 web_bp.add_url_rule("/favoritos", "favoritos", controller.favoritos, methods=["GET"])
 web_bp.add_url_rule("/eventos", "eventos", controller.eventos, methods=["GET"])
 web_bp.add_url_rule("/eventos", "criar_evento", controller.criar_evento, methods=["POST"])
 web_bp.add_url_rule("/eventos/<int:id_evento>/participar", "participar_evento", controller.participar_evento, methods=["POST"])
+web_bp.add_url_rule("/eventos/<int:id_evento>/comentarios", "comentar_evento", controller.comentar_evento, methods=["POST"])
+web_bp.add_url_rule("/denunciar", "denunciar", controller.denunciar, methods=["POST"])
+web_bp.add_url_rule("/eventos/<int:id_alvo>/denunciar", "denunciar_evento", lambda id_alvo: controller.denunciar("EVENTO", id_alvo), methods=["POST"])
+web_bp.add_url_rule("/trilhas/<int:id_alvo>/denunciar", "denunciar_trilha", lambda id_alvo: controller.denunciar("TRILHA", id_alvo), methods=["POST"])
 web_bp.add_url_rule("/eventos/<int:id_evento>/sair", "sair_evento", controller.sair_evento, methods=["POST"])
-web_bp.add_url_rule("/perfil", "perfil", controller.perfil, methods=["GET"])
+web_bp.add_url_rule("/perfil", "perfil", controller.perfil, methods=["GET", "POST"])

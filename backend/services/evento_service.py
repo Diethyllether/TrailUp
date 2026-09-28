@@ -1,17 +1,21 @@
-from models.evento_model import Evento
-from models.usuario_model import Usuario
-from models.checkpoint_model import Checkpoint
+from models.evento_model import Evento, ComentarioEvento
 from repositories.evento_repository import EventoRepository
+from repositories.checkpoint_repository import CheckpointRepository
+from repositories.usuario_repository import UsuarioRepository
 from services.casos_uso import ListarEventosService, ParticiparEventoService
 
 
 class EventoService:
     """Facade de eventos; listagem e participação possuem casos de uso próprios."""
 
-    def __init__(self):
-        self.repository = EventoRepository()
-        self.listar_eventos_service = ListarEventosService()
-        self.participar_evento_service = ParticiparEventoService()
+    def __init__(self, repository=None, usuario_repository=None, checkpoint_repository=None):
+        self.repository = repository or EventoRepository()
+        self.usuario_repository = usuario_repository or UsuarioRepository()
+        self.checkpoint_repository = checkpoint_repository or CheckpointRepository()
+        self.listar_eventos_service = ListarEventosService(
+            self.repository, self.usuario_repository
+        )
+        self.participar_evento_service = ParticiparEventoService(self.repository)
 
     def listar_todos(self):
         return self.listar_eventos_service.executar()
@@ -33,34 +37,24 @@ class EventoService:
         vinculos = self.repository.listar_trilhas_do_evento(evento.idEvento)
         dados["trilhasIds"] = [v.idTrilha for v in vinculos]
         dados["participantesAtuais"] = self.repository.contar_participantes(evento.idEvento)
-        criador = Usuario.buscar_por_id(evento.idCriador)
+        dados["participantes"] = self.listar_participantes(evento.idEvento)
+        dados["comentarios"] = self.listar_comentarios(evento.idEvento)
+        criador = self.usuario_repository.buscar_por_id(evento.idCriador)
         dados["nomeCriador"] = criador.nome if criador else None
         return dados
 
     def buscar_por_id(self, id_evento):
-        evento = Evento.buscar_por_id(id_evento)
+        evento = self.repository.buscar_por_id(id_evento)
         if not evento:
             raise ValueError("evento não encontrado")
         return evento
 
-    @staticmethod
-    def _coordenadas_da_trilha(ids_trilha):
+    def _coordenadas_da_trilha(self, ids_trilha):
         """Usa o primeiro checkpoint GPS válido da primeira trilha vinculada."""
         for id_trilha in ids_trilha or []:
-            checkpoints = Checkpoint.query.filter_by(idTrilha=id_trilha).order_by(
-                Checkpoint.idCheckpoint.asc()
-            ).all()
-            for checkpoint in checkpoints:
-                lat = checkpoint.latitude
-                lng = checkpoint.longitude
-                if (
-                    lat is not None
-                    and lng is not None
-                    and -90 <= lat <= 90
-                    and -180 <= lng <= 180
-                    and not (lat == 0 and lng == 0)
-                ):
-                    return float(lat), float(lng)
+            checkpoint = self.checkpoint_repository.primeiro_valido_por_trilha(id_trilha)
+            if checkpoint:
+                return float(checkpoint.latitude), float(checkpoint.longitude)
         return None, None
 
     def criar(self, id_criador, dados):
@@ -95,7 +89,7 @@ class EventoService:
             longitude=longitude,
             idCriador=id_criador,
         )
-        evento.salvar()
+        self.repository.criar(evento)
 
         for id_trilha in ids_trilha:
             self.repository.vincular_trilha(evento.idEvento, id_trilha)
@@ -115,13 +109,14 @@ class EventoService:
             if campo in dados:
                 setattr(evento, campo, dados[campo])
 
-        return evento.atualizar()
+        self.repository.atualizar()
+        return evento
 
     def deletar(self, id_evento, id_usuario):
         evento = self.buscar_por_id(id_evento)
         if evento.idCriador != id_usuario:
             raise PermissionError("apenas o criador pode remover a sala")
-        evento.deletar()
+        self.repository.deletar(evento)
 
     def entrar(self, id_evento, id_usuario):
         return self.participar_evento_service.executar(id_evento, id_usuario)
@@ -130,7 +125,21 @@ class EventoService:
         return self.repository.remover_participante(id_usuario, id_evento)
 
     def listar_participantes(self, id_evento):
-        return self.repository.listar_participantes(id_evento)
+        evento = self.buscar_por_id(id_evento)
+        return [u.nome for p in self.repository.listar_participantes(evento.idEvento)
+                if (u := self.usuario_repository.buscar_por_id(p.idUsuario))]
+
+    def listar_comentarios(self, id_evento):
+        return [{**comentario.to_dict(), "nomeUsuario": nome}
+                for comentario, nome in self.repository.listar_comentarios(id_evento)]
+
+    def comentar(self, id_evento, id_usuario, texto):
+        if not self.usuario_participa(id_usuario, id_evento):
+            raise PermissionError("apenas participantes confirmados podem comentar")
+        texto = (texto or "").strip()
+        if not texto or len(texto) > 2000:
+            raise ValueError("comentário deve ter entre 1 e 2000 caracteres")
+        return self.repository.criar_comentario(ComentarioEvento(texto=texto, idUsuario=id_usuario, idEvento=id_evento))
 
     def listar_trilhas(self, id_evento):
         return self.repository.listar_trilhas_do_evento(id_evento)

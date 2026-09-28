@@ -3,14 +3,16 @@ from services.casos_uso import (
     ListarFavoritosService,
     RemoverFavoritoService,
 )
+from repositories.favorito_repository import FavoritoRepository
 
 class FavoritoService:
     """Facade compatível com as rotas antigas, delegando a casos de uso únicos."""
 
-    def __init__(self):
-        self.listar_service = ListarFavoritosService()
-        self.adicionar_service = AdicionarFavoritoService()
-        self.remover_service = RemoverFavoritoService()
+    def __init__(self, repository=None):
+        repository = repository or FavoritoRepository()
+        self.listar_service = ListarFavoritosService(repository)
+        self.adicionar_service = AdicionarFavoritoService(repository)
+        self.remover_service = RemoverFavoritoService(repository)
 
     def listar_por_usuario(self, id_usuario):
         return self.listar_service.executar(id_usuario)

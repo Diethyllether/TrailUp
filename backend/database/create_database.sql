@@ -130,6 +130,17 @@ CREATE TABLE IF NOT EXISTS participante_evento (
     INDEX idx_participante_evento (idEvento)
 ) ENGINE=InnoDB;
 
+CREATE TABLE IF NOT EXISTS comentario_evento (
+    idComentario INT AUTO_INCREMENT PRIMARY KEY,
+    texto TEXT NOT NULL,
+    dataEnvio DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    idUsuario INT NOT NULL,
+    idEvento INT NOT NULL,
+    CONSTRAINT fk_comentario_evento_usuario FOREIGN KEY (idUsuario) REFERENCES usuario(idUsuario) ON UPDATE CASCADE ON DELETE CASCADE,
+    CONSTRAINT fk_comentario_evento_evento FOREIGN KEY (idEvento) REFERENCES evento(idEvento) ON UPDATE CASCADE ON DELETE CASCADE,
+    INDEX idx_comentario_evento (idEvento, dataEnvio)
+) ENGINE=InnoDB;
+
 CREATE TABLE IF NOT EXISTS notificacao (
     idNotificacao INT AUTO_INCREMENT PRIMARY KEY,
     mensagem TEXT NOT NULL, dataEnvio DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -142,10 +153,11 @@ CREATE TABLE IF NOT EXISTS notificacao (
 CREATE TABLE IF NOT EXISTS denuncia (
     idDenuncia INT AUTO_INCREMENT PRIMARY KEY, descricao TEXT NOT NULL,
     dataEnvio DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    status VARCHAR(50) NOT NULL DEFAULT 'PENDENTE', idEvento INT NOT NULL,
+    status VARCHAR(50) NOT NULL DEFAULT 'PENDENTE', categoria VARCHAR(30) NOT NULL DEFAULT 'EVENTO', idEvento INT NULL, idTrilha INT NULL,
     idUsuarioDenunciante INT NOT NULL, idUsuarioDenunciado INT NULL,
     CONSTRAINT chk_denuncia_status CHECK (status IN ('PENDENTE','EM_ANALISE','RESOLVIDA','ARQUIVADA')),
     CONSTRAINT fk_denuncia_evento FOREIGN KEY (idEvento) REFERENCES evento(idEvento) ON UPDATE CASCADE ON DELETE CASCADE,
+    CONSTRAINT fk_denuncia_trilha FOREIGN KEY (idTrilha) REFERENCES trilha(idTrilha) ON UPDATE CASCADE ON DELETE CASCADE,
     CONSTRAINT fk_denuncia_denunciante FOREIGN KEY (idUsuarioDenunciante) REFERENCES usuario(idUsuario) ON UPDATE CASCADE ON DELETE CASCADE,
     CONSTRAINT fk_denuncia_denunciado FOREIGN KEY (idUsuarioDenunciado) REFERENCES usuario(idUsuario) ON UPDATE CASCADE ON DELETE SET NULL,
     INDEX idx_denuncia_evento (idEvento), INDEX idx_denuncia_status (status),

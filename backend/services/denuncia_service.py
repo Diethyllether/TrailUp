@@ -3,22 +3,30 @@ import datetime
 from models.denuncia_model import Denuncia
 from repositories.denuncia_repository import DenunciaRepository
 
+
 class DenunciaService:
-    def __init__(self):
-        self.repository = DenunciaRepository()
+    def __init__(self, repository=None):
+        self.repository = repository or DenunciaRepository()
 
     def listar_por_evento(self, id_evento):
         return self.repository.listar_por_evento(id_evento)
 
     def criar(self, id_usuario_denunciante, dados):
-        if not dados.get("idEvento") or not dados.get("descricao"):
-            raise ValueError("idEvento e descricao são obrigatórios")
-
+        descricao = (dados.get("descricao") or "").strip()
+        categoria = dados.get("categoria", "EVENTO")
+        if not descricao or categoria not in ("BUG", "TRILHA", "EVENTO", "OUTRO"):
+            raise ValueError("categoria e descrição válida são obrigatórias")
+        if categoria == "EVENTO" and not dados.get("idEvento"):
+            raise ValueError("evento não encontrado")
+        if categoria == "TRILHA" and not dados.get("idTrilha"):
+            raise ValueError("trilha não encontrada")
         denuncia = Denuncia(
-            descricao=dados["descricao"],
+            descricao=descricao,
             dataEnvio=datetime.datetime.utcnow(),
             status="PENDENTE",
-            idEvento=dados["idEvento"],
+            categoria=categoria,
+            idEvento=dados.get("idEvento"),
+            idTrilha=dados.get("idTrilha"),
             idUsuarioDenunciante=id_usuario_denunciante,
             idUsuarioDenunciado=dados.get("idUsuarioDenunciado"),
         )

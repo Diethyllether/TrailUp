@@ -5,8 +5,8 @@ from repositories.usuario_repository import UsuarioRepository
 from utils.auth import hash_senha
 
 class CadastrarUsuarioService:
-    def __init__(self):
-        self.repository = UsuarioRepository()
+    def __init__(self, repository=None):
+        self.repository = repository or UsuarioRepository()
 
     def executar(self, dados):
         if not dados.get("nome") or not dados.get("email") or not dados.get("senha"):
@@ -22,4 +22,4 @@ class CadastrarUsuarioService:
             fotoPerfil=dados.get("fotoPerfil"),
             dataCadastro=datetime.date.today(),
         )
-        return usuario.salvar()
+        return self.repository.criar(usuario)

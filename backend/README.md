@@ -1,6 +1,6 @@
 # TrailUp — Backend + Site Web
 
-O TrailUp é servido pelo próprio Flask como um **site Jinja2**, mantendo também a API REST existente. A persistência usa **Flask-SQLAlchemy + MySQL** e os mapas do site usam **Google Maps JavaScript API**.
+O TrailUp é servido pelo Flask como uma aplicação web **MVC** com Jinja2. A persistência usa **Flask-SQLAlchemy + MySQL** e os mapas do site usam **Google Maps JavaScript API**.
 
 ## Arquitetura
 
@@ -10,13 +10,16 @@ Fluxo das páginas web:
 Jinja2/HTML -> WebController -> Service -> Model/Repository -> Banco de Dados
 ```
 
-Fluxo da API JSON:
-
-```text
-Cliente -> Controller API -> Service -> Model/Repository -> Banco de Dados
-```
+Os Controllers tratam apenas a entrada e a saída HTTP. Regras e validações ficam
+nos Services, enquanto consultas e persistência ficam nos Repositories. As
+dependências principais podem ser recebidas por construtor, evitando consultas
+diretas aos Models na camada web e favorecendo os princípios SOLID.
 
 A regra de negócio permanece no backend. Os templates não executam consultas diretamente no banco.
+
+The web frontend is located in `../frontend`: Jinja2 templates are in
+`frontend/templates`, styles are in `frontend/static/css`, and JavaScript is
+in `frontend/static/js`. `app.py` serves these assets at `/static`.
 
 Estrutura principal:
 
@@ -45,7 +48,6 @@ backend/
 ├── models/
 ├── repositories/
 ├── services/
-├── tests/
 └── utils/
 ```
 
@@ -104,7 +106,7 @@ Rotas principais:
 | `/eventos` | listar e criar expedições |
 | `/perfil` | perfil básico |
 
-A autenticação das páginas usa a sessão assinada do Flask. A API REST continua usando `Authorization: Bearer <token>`.
+A autenticação das páginas usa a sessão assinada do Flask.
 
 ## Google Maps
 
@@ -205,13 +207,6 @@ Todas as rotas abaixo usam `/api`.
 | Relatórios | `GET /relatorios/trilhas` |
 | Relatórios | `GET /relatorios/usuarios/<id>/resumo` |
 | Ranking | `GET /relatorios/usuarios/ranking` |
-
-## Testes
-
-```bash
-python tests/smoke_test.py
-python tests/requisitos_busca_test.py
-```
 
 ## Variáveis de ambiente
 

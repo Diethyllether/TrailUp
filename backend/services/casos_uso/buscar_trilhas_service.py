@@ -1,6 +1,5 @@
 import unicodedata
 
-from models.trilha_model import Trilha
 from repositories.trilha_repository import TrilhaRepository
 
 def _normalizar_dificuldade(valor):
@@ -15,8 +14,8 @@ def _normalizar_dificuldade(valor):
     return valor
 
 class BuscarTrilhasService:
-    def __init__(self):
-        self.repository = TrilhaRepository()
+    def __init__(self, repository=None):
+        self.repository = repository or TrilhaRepository()
 
     def executar(self, nome=None, localizacao=None, dificuldade=None, busca=None):
         if nome or localizacao or dificuldade or busca:
@@ -26,4 +25,4 @@ class BuscarTrilhasService:
                 dificuldade=_normalizar_dificuldade(dificuldade),
                 busca=busca,
             )
-        return Trilha.listar_todos()
+        return self.repository.listar_todos()

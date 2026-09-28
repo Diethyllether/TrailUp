@@ -2,7 +2,7 @@
 
 > Plataforma web social de trilhas para encontrar rotas, organizar expedições, participar de grupos e registrar experiências.
 
-O TrailUp foi migrado do aplicativo Flutter para um **site Flask + Jinja2**. O backend REST em Flask continua disponível e a persistência permanece em **MySQL**. Os mapas das trilhas agora são exibidos online com **Google Maps JavaScript API**.
+O TrailUp foi migrado do aplicativo Flutter para um **site Flask + Jinja2** em arquitetura MVC. A persistência permanece em **MySQL** e os mapas das trilhas são exibidos online com **Google Maps JavaScript API**.
 
 A antiga funcionalidade de **download de mapas offline foi descontinuada**. O site usa os checkpoints GPS já cadastrados para desenhar a rota diretamente no Google Maps, sem salvar pacotes de tiles no dispositivo.
 
@@ -15,7 +15,6 @@ A antiga funcionalidade de **download de mapas offline foi descontinuada**. O si
 | Mapas | Google Maps JavaScript API |
 | ORM | Flask-SQLAlchemy |
 | Banco de Dados | MySQL + PyMySQL |
-| API | REST/JSON Flask |
 
 ## Arquitetura
 
@@ -25,13 +24,23 @@ As regras de negócio continuam centralizadas no backend:
 Página Jinja2 -> Controller Flask -> Service -> Model/Repository -> MySQL
 ```
 
-A API JSON continua usando o fluxo da atividade:
+Responsabilidades das camadas:
 
-```text
-Cliente -> API Flask -> Controller -> Service de caso de uso -> Model/Repository -> Banco de Dados
-```
+- **View:** templates Jinja2 e arquivos estáticos; apenas apresentam dados.
+- **Controller:** traduz HTTP/formulários para chamadas de casos de uso e respostas.
+- **Service:** concentra validações, regras de negócio e orquestração.
+- **Repository:** é a única camada que consulta ou persiste com SQLAlchemy.
+- **Model:** representa as entidades e o mapeamento objeto-relacional.
 
-O frontend web reutiliza os mesmos Services e Models da API, evitando duplicar regras de negócio no JavaScript.
+Os Services e Controllers aceitam suas dependências por construtor. Isso reduz
+acoplamento, permite substituir implementações e mantém cada classe com uma
+responsabilidade principal, em conformidade com os princípios SOLID.
+
+O frontend web reutiliza os mesmos Services e Models da aplicação, evitando duplicar regras de negócio no JavaScript.
+
+The web frontend is organized under `frontend/`: templates are in
+`frontend/templates`, styles in `frontend/static/css`, and JavaScript in
+`frontend/static/js`. Flask serves the static assets at `/static`.
 
 Estrutura principal:
 
@@ -55,7 +64,6 @@ TrailUp/
 │   │   ├── login.html
 │   │   ├── register.html
 │   │   └── profile.html
-│   ├── tests/
 │   ├── app.py
 │   ├── config.py
 │   └── requirements.txt
@@ -77,7 +85,7 @@ TrailUp/
 10. Participar de eventos/expedições
 11. Perfil básico do usuário
 
-A API REST existente continua oferecendo avaliações, histórico, notificações, denúncias, relatórios e demais recursos do backend.
+Os recursos do backend são acessados pelas páginas MVC por meio do `WebController` e da camada de services.
 
 ## Google Maps
 
@@ -176,19 +184,11 @@ Resposta esperada:
 {"status":"ok","service":"TrailUp API + Web"}
 ```
 
-## Testes do backend
+## Frontend web e Flutter legado
 
-```bash
-cd backend
-python tests/smoke_test.py
-python tests/requisitos_busca_test.py
-```
-
-Os testes da API continuam independentes da interface Jinja2.
-
-## Frontend Flutter legado
-
-A pasta `frontend/` permanece somente como histórico da versão mobile durante a migração. O produto atual deve ser executado pelo Flask em `http://localhost:5000/`. O fluxo de download de mapas foi retirado da versão mobile legada e não é usado pelo site.
+O site Jinja2 está em `frontend/templates`, com CSS e JavaScript em
+`frontend/static`. O aplicativo Flutter legado permanece em `frontend/lib`;
+o produto web é executado pelo Flask em `http://localhost:5000/`.
 
 ## Relatórios de banco de dados
 

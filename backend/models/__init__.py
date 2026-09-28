@@ -1,33 +1,32 @@
-"""
-Importa todos os models para que o SQLAlchemy os registre em db.metadata
-(necessário para a resolução das ForeignKeys).
-"""
-from models.usuario_model import Usuario
-from models.trilha_model import Trilha
-from models.avaliacao_model import Avaliacao
-from models.favorito_model import Favorito
-from models.checkpoint_model import Checkpoint
-from models.foto_model import Foto
-from models.evento_model import Evento, EventoTrilha, ParticipanteEvento
-from models.notificacao_model import Notificacao
-from models.denuncia_model import Denuncia
-from models.historico_model import HistoricoTrilha, RegistroRealizado, FotoRegistro
-from models.checklist_item_model import ChecklistItem
+"""Exporta e registra os modelos ORM do pacote."""
+
+from .avaliacao_model import Avaliacao
+from .checkpoint_model import Checkpoint
+from .checklist_item_model import ChecklistItem
+from .denuncia_model import Denuncia
+from .evento_model import ComentarioEvento, Evento, EventoTrilha, ParticipanteEvento
+from .favorito_model import Favorito
+from .foto_model import Foto
+from .historico_model import FotoRegistro, HistoricoTrilha, RegistroRealizado
+from .notificacao_model import Notificacao
+from .trilha_model import Trilha
+from .usuario_model import Usuario
 
 __all__ = [
-    "Usuario",
-    "Trilha",
     "Avaliacao",
-    "Favorito",
     "Checkpoint",
-    "Foto",
+    "ChecklistItem",
+    "ComentarioEvento",
+    "Denuncia",
     "Evento",
     "EventoTrilha",
-    "ParticipanteEvento",
-    "Notificacao",
-    "Denuncia",
-    "HistoricoTrilha",
-    "RegistroRealizado",
+    "Favorito",
+    "Foto",
     "FotoRegistro",
-    "ChecklistItem",
+    "HistoricoTrilha",
+    "Notificacao",
+    "ParticipanteEvento",
+    "RegistroRealizado",
+    "Trilha",
+    "Usuario",
 ]

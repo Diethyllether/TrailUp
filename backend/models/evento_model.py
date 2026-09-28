@@ -1,4 +1,5 @@
 from extensions import db
+from models.usuario_model import Usuario
 
 class Evento(db.Model):
     __tablename__ = "evento"
@@ -68,3 +69,19 @@ class ParticipanteEvento(db.Model):
 
     def to_dict(self):
         return {"idUsuario": self.idUsuario, "idEvento": self.idEvento}
+
+
+class ComentarioEvento(db.Model):
+    __tablename__ = "comentario_evento"
+
+    idComentario = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    texto = db.Column(db.Text, nullable=False)
+    dataEnvio = db.Column(db.DateTime, nullable=False, default=db.func.now())
+    idUsuario = db.Column(db.Integer, db.ForeignKey("usuario.idUsuario"), nullable=False)
+    idEvento = db.Column(db.Integer, db.ForeignKey("evento.idEvento"), nullable=False)
+
+    def to_dict(self):
+        autor = db.session.get(Usuario, self.idUsuario)
+        return {"idComentario": self.idComentario, "texto": self.texto,
+                "dataEnvio": self.dataEnvio.isoformat() if self.dataEnvio else None,
+                "nomeUsuario": autor.nome if autor else "Usuário"}

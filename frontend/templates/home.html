@@ -1,0 +1,130 @@
+﻿{% extends "base.html" %}
+{% block title %}TrailUp · Home{% endblock %}
+{% block content %}
+<section class="hero">
+  <div class="container">
+    {% if usuario_logado %}
+      <h1 style="font-size:clamp(1.8rem,3vw,2.4rem); margin-bottom:6px">Olá, {{ usuario_logado.nome.split(' ')[0] }} 👋</h1>
+      <p class="lead" style="margin-bottom:0">Onde vai trilhar hoje?</p>
+    {% else %}
+      <h1 style="font-size:clamp(2rem,4vw,3.2rem)">Encontre sua próxima trilha.</h1>
+      <p class="lead">Descubra rotas, acompanhe expedições e salve suas trilhas favoritas.</p>
+    {% endif %}
+
+    <form class="searchbar" method="get" action="{{ url_for('web_bp.inicio') }}">
+      <input name="busca" value="{{ busca }}" placeholder="Buscar trilha ou região...">
+      <select name="dificuldade">
+        <option value="">Todas</option>
+        <option value="FACIL" {% if dificuldade == 'FACIL' %}selected{% endif %}>Fácil</option>
+        <option value="MODERADA" {% if dificuldade == 'MODERADA' %}selected{% endif %}>Moderado</option>
+        <option value="DIFICIL" {% if dificuldade == 'DIFICIL' %}selected{% endif %}>Difícil</option>
+      </select>
+      <button class="button primary" type="submit">Buscar</button>
+    </form>
+
+    <form class="searchbar" method="get" action="{{ url_for('web_bp.inicio') }}" style="grid-template-columns:repeat(4,1fr);margin-top:12px">
+      <input type="hidden" name="busca" value="{{ busca }}"><input type="hidden" name="dificuldade" value="{{ dificuldade }}">
+      <select name="ordenar"><option value="">Ordenar por…</option><option value="distancia" {% if ordenacao=='distancia' %}selected{% endif %}>Menor distância</option><option value="duracao" {% if ordenacao=='duracao' %}selected{% endif %}>Menor duração</option><option value="nota" {% if ordenacao=='nota' %}selected{% endif %}>Melhor nota</option></select>
+      <input type="number" name="distancia_max" min="0" step="0.1" placeholder="Distância máx. km" value="{{ distancia_max }}">
+      <input type="number" name="duracao_max" min="0" step="1" placeholder="Duração máx. min" value="{{ duracao_max }}">
+      <input type="number" name="nota_min" min="1" max="5" step="0.1" placeholder="Nota mínima" value="{{ nota_min }}">
+      <button class="button primary" type="submit">Aplicar filtros</button>
+    </form>
+
+    <button class="button ghost" type="button" onclick="navigator.geolocation.getCurrentPosition(p=>{const u=new URL(location.href);u.searchParams.set('lat',p.coords.latitude);u.searchParams.set('lon',p.coords.longitude);location.href=u})">Encontrar trilhas próximas</button>
+    <div class="filter-chips">
+      <a class="filter-chip {% if not dificuldade %}active{% endif %}" href="{{ url_for('web_bp.inicio', busca=busca) }}">Todas</a>
+      <a class="filter-chip {% if dificuldade == 'FACIL' %}active{% endif %}" href="{{ url_for('web_bp.inicio', busca=busca, dificuldade='FACIL') }}">Fácil</a>
+      <a class="filter-chip {% if dificuldade == 'MODERADA' %}active{% endif %}" href="{{ url_for('web_bp.inicio', busca=busca, dificuldade='MODERADA') }}">Moderado</a>
+      <a class="filter-chip {% if dificuldade == 'DIFICIL' %}active{% endif %}" href="{{ url_for('web_bp.inicio', busca=busca, dificuldade='DIFICIL') }}">Difícil</a>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    <div class="section-header">
+      <div>
+        <h2>{% if busca or dificuldade %}Resultados da busca{% else %}Trilhas em Destaque{% endif %}</h2>
+      </div>
+      <span class="muted">{{ trilhas|length }} encontrada(s)</span>
+    </div>
+
+    {% if trilhas %}
+      <div class="cards">
+        {% for trilha in trilhas %}
+          <article class="card">
+            <a href="{{ url_for('web_bp.trilha', id_trilha=trilha.idTrilha) }}">
+              <div class="card-media">
+                {% if trilha.imagemUrl %}
+                  <img src="{{ trilha.imagemUrl }}" alt="{{ trilha.nome }}">
+                {% endif %}
+              </div>
+              <div class="card-body">
+                <div class="card-title">{{ trilha.nome }}</div>
+                <div class="meta">
+                  {% if trilha.localizacao %}<span>{{ trilha.localizacao }}</span>{% endif %}
+                  {% if trilha.distancia is not none %}<span>· {{ '%.1f'|format(trilha.distancia) }} km</span>{% endif %}
+                </div>
+                <div class="meta" style="margin-top:10px">
+                  {% if trilha.dificuldade %}<span class="badge">{{ trilha.dificuldade|capitalize }}</span>{% endif %}
+                  {% if trilha.tempoEstimadoMin %}<span class="badge">~ {{ trilha.tempoEstimadoMin|round|int }} min</span>{% endif %}
+                  {% set media = medias.get(trilha.idTrilha) %}{% if media and media[0] is not none %}<span class="badge">★ {{ '%.1f'|format(media[0]) }} · {{ media[1] }} avaliação(ões)</span>{% else %}<span class="badge">Sem avaliações</span>{% endif %}
+                </div>
+              </div>
+            </a>
+            {% if usuario_logado %}
+              <div class="card-body" style="padding-top:0">
+                <form method="post" action="{{ url_for('web_bp.alternar_favorito', id_trilha=trilha.idTrilha) }}">
+                  <button class="button ghost" type="submit">
+                    {% if trilha.idTrilha in favoritos_ids %}★ Remover dos favoritos{% else %}☆ Favoritar{% endif %}
+                  </button>
+                </form>
+              </div>
+            {% endif %}
+          </article>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty">Nenhuma trilha encontrada.</div>
+    {% endif %}
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    <div class="section-header">
+      <div>
+        <h2>Expedições Ativas</h2>
+      </div>
+      <a class="button ghost" href="{{ url_for('web_bp.eventos') }}">Ver todas</a>
+    </div>
+    {% if eventos %}
+      <div class="event-list">
+        {% for evento in eventos %}
+          <div class="event-row">
+            <div>
+              <strong>{{ evento.titulo }}</strong>
+              <p class="muted">{{ evento.data or 'Data a definir' }} · {{ evento.tipo|capitalize }}{% if evento.vagas %} · {{ evento.vagas }} vagas{% endif %}</p>
+            </div>
+            {% if usuario_logado %}
+              <form method="post" action="{{ url_for('web_bp.participar_evento', id_evento=evento.idEvento) }}">
+                <button class="button primary" type="submit">Participar</button>
+              </form>
+            {% else %}
+              <a class="button ghost" href="{{ url_for('web_bp.login') }}">Entrar para participar</a>
+            {% endif %}
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty">Nenhuma expedição aberta perto de você.</div>
+    {% endif %}
+  </div>
+</section>
+<section class="section"><div class="container"><div class="section-header"><div><h2>Trilhas próximas</h2></div>{% if proximas %}<span class="muted">Distância em linha reta da sua posição</span>{% endif %}</div>{% if proximas %}<div class="cards">{% for trilha, km in proximas %}<a class="card card-body" href="{{ url_for('web_bp.trilha', id_trilha=trilha.idTrilha) }}"><strong>{{ trilha.nome }}</strong><span class="muted">{{ trilha.localizacao or '' }} · {{ km }} km</span></a>{% endfor %}</div>{% elif request.args.get('lat') %}<div class="empty">Não encontramos checkpoints próximos.</div>{% else %}<div class="muted">Use “Encontrar trilhas próximas” para compartilhar sua localização.</div>{% endif %}</div></section><section class="section"><div class="container"><details class="panel"><summary>Reportar bug ou outro problema</summary><form method="post" action="{{ url_for('web_bp.denunciar') }}" class="form-grid" style="margin-top:14px"><label>Categoria<select name="categoria"><option value="BUG">Bug</option><option value="OUTRO">Outro</option></select></label><label>Descrição<textarea name="descricao" required maxlength="2000"></textarea></label><button class="button ghost" type="submit">Enviar relato</button></form></details></div></section>{% endblock %}
+
+
+
+
+

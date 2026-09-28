@@ -1,12 +1,11 @@
-from models.evento_model import Evento
 from repositories.evento_repository import EventoRepository
 
 class ParticiparEventoService:
-    def __init__(self):
-        self.repository = EventoRepository()
+    def __init__(self, repository=None):
+        self.repository = repository or EventoRepository()
 
     def executar(self, id_evento, id_usuario):
-        evento = Evento.buscar_por_id(id_evento)
+        evento = self.repository.buscar_por_id(id_evento)
         if not evento:
             raise ValueError("evento não encontrado")
 

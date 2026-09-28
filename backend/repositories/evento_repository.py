@@ -1,9 +1,13 @@
 from extensions import db
-from models.evento_model import Evento, EventoTrilha, ParticipanteEvento
+from models.evento_model import Evento, EventoTrilha, ParticipanteEvento, ComentarioEvento
+from models.usuario_model import Usuario
+from repositories.base_repository import BaseRepository
 
 
-class EventoRepository:
+class EventoRepository(BaseRepository):
     """Acesso especializado a vínculos, participantes e consultas de eventos."""
+
+    model = Evento
 
     def listar_ativos(self):
         return Evento.query.filter(
@@ -58,6 +62,17 @@ class EventoRepository:
 
     def listar_participantes(self, id_evento):
         return ParticipanteEvento.query.filter_by(idEvento=id_evento).all()
+
+    def listar_comentarios(self, id_evento):
+        return (db.session.query(ComentarioEvento, Usuario.nome)
+                .join(Usuario, Usuario.idUsuario == ComentarioEvento.idUsuario)
+                .filter(ComentarioEvento.idEvento == id_evento)
+                .order_by(ComentarioEvento.dataEnvio.asc()).all())
+
+    def criar_comentario(self, comentario):
+        db.session.add(comentario)
+        db.session.commit()
+        return comentario
 
     def contar_participantes(self, id_evento):
         return ParticipanteEvento.query.filter_by(idEvento=id_evento).count()
