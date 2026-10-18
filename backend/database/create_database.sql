@@ -47,6 +47,7 @@ CREATE TABLE IF NOT EXISTS checklist_item (
     INDEX idx_checklist_trilha (idTrilha, obrigatorio)
 ) ENGINE=InnoDB;
 
+
 CREATE TABLE IF NOT EXISTS evento (
     idEvento INT AUTO_INCREMENT PRIMARY KEY,
     titulo VARCHAR(100) NOT NULL,

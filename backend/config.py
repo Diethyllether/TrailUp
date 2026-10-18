@@ -9,3 +9,5 @@ class Config:
 
     SECRET_KEY = os.environ.get("SECRET_KEY", "troque-esta-chave-em-producao")
     DEBUG = os.environ.get("FLASK_DEBUG", "true").lower() == "true"
+    SESSION_COOKIE_SAMESITE = os.environ.get("SESSION_COOKIE_SAMESITE", "Lax")
+    SESSION_COOKIE_SECURE = os.environ.get("SESSION_COOKIE_SECURE", "false").lower() == "true"

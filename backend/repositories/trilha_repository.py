@@ -42,9 +42,11 @@ class TrilhaRepository(BaseRepository):
 
     def medias_avaliacao(self):
         from models.avaliacao_model import Avaliacao
-        return dict(Trilha.query.outerjoin(Avaliacao, Avaliacao.idTrilha == Trilha.idTrilha)
-                    .with_entities(Trilha.idTrilha, func.avg(Avaliacao.nota), func.count(Avaliacao.idAvaliacao))
-                    .group_by(Trilha.idTrilha).all())
+        rows = (Trilha.query.outerjoin(Avaliacao, Avaliacao.idTrilha == Trilha.idTrilha)
+                .with_entities(Trilha.idTrilha, func.avg(Avaliacao.nota), func.count(Avaliacao.idAvaliacao))
+                .group_by(Trilha.idTrilha).all())
+        # O frontend usa [media, quantidade] para mostrar a nota média no card.
+        return {row[0]: (row[1], row[2]) for row in rows}
 
     def pontos_proximos(self):
         from models.checkpoint_model import Checkpoint

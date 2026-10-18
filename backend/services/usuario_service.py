@@ -45,6 +45,9 @@ class UsuarioService:
         if not usuario:
             raise ValueError("usuário não encontrado")
 
+        if not nova_senha or len(nova_senha) < 6:
+            raise ValueError("a nova senha deve ter pelo menos 6 caracteres")
+
         usuario.senha = hash_senha(nova_senha)
         self.repository.atualizar()
         del self._tokens_recuperacao[token]

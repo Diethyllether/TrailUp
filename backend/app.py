@@ -1,50 +1,59 @@
-from pathlib import Path
+import os
 
-from flask import Flask, render_template
-from flask_sqlalchemy import SQLAlchemy
+from flask import Flask, jsonify, request, send_file
 
 from config import Config
-
+from extensions import db
 import models
-
-from controllers.web_controller import web_bp
-
-
-FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
-db = SQLAlchemy()
+from api_controller import api_bp
 
 
 def create_app():
-    app = Flask(
-        __name__,
-        template_folder=str(FRONTEND_DIR / "templates"),
-        static_folder=str(FRONTEND_DIR / "static"),
-    )
+    # This process exposes JSON endpoints only. The frontend is hosted separately.
+    app = Flask(__name__, static_folder=None)
     app.config.from_object(Config)
     app.url_map.strict_slashes = False
-
     db.init_app(app)
-    app.register_blueprint(web_bp)
+    app.register_blueprint(api_bp, url_prefix="/api")
+
+    @app.get("/termo-consentimento")
+    def consent_term():
+        termo_path = os.path.join(os.path.dirname(app.root_path), "TermoDeConsentimentoTrailUp.pdf")
+        return send_file(termo_path, mimetype="application/pdf", as_attachment=False)
+
+    @app.after_request
+    def api_cors(response):
+        origin = request.headers.get("Origin")
+        allowed_origin = os.environ.get("FRONTEND_ORIGIN", "http://localhost:8000")
+        if origin == allowed_origin:
+            response.headers["Access-Control-Allow-Origin"] = origin
+            response.headers["Access-Control-Allow-Credentials"] = "true"
+            response.headers["Vary"] = "Origin"
+        if request.method == "OPTIONS":
+            response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+            response.headers["Access-Control-Allow-Headers"] = "Content-Type"
+            response.headers["Access-Control-Max-Age"] = "600"
+        return response
+
+    @app.route("/api", methods=["OPTIONS"])
+    @app.route("/api/<path:_path>", methods=["OPTIONS"])
+    def options(_path=None):
+        return "", 204
 
     @app.errorhandler(404)
     def not_found(_error):
-        return render_template("404.html", usuario_logado=None), 404
-
-    @app.errorhandler(405)
-    def method_not_allowed(_error):
-        return render_template("404.html", usuario_logado=None), 405
+        return jsonify(error="Recurso da API não encontrado"), 404
 
     @app.errorhandler(500)
     def internal_error(_error):
         db.session.rollback()
-        app.logger.exception("Web request failed")
-        return render_template("500.html", usuario_logado=None), 500
+        app.logger.exception("API request failed")
+        return jsonify(error="Erro interno do servidor"), 500
 
     return app
 
 
 app = create_app()
-
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=Config.DEBUG)

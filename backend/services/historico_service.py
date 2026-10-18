@@ -26,10 +26,17 @@ class HistoricoService:
         if not dados.get("idTrilha"):
             raise ValueError("idTrilha é obrigatório")
 
+        tempo = dados.get("tempo")
+        if tempo not in (None, "") and float(tempo) < 0:
+            raise ValueError("tempo deve ser zero ou maior")
+        avaliacao = dados.get("avaliacaoPessoal")
+        if avaliacao not in (None, "") and int(avaliacao) not in range(1, 6):
+            raise ValueError("avaliação pessoal deve ser de 1 a 5")
+
         historico = HistoricoTrilha(
             dataRealizacao=dados.get("dataRealizacao") or datetime.date.today(),
-            tempo=dados.get("tempo"),
-            avaliacaoPessoal=dados.get("avaliacaoPessoal"),
+            tempo=float(tempo) if tempo not in (None, "") else None,
+            avaliacaoPessoal=int(avaliacao) if avaliacao not in (None, "") else None,
             idUsuario=id_usuario,
             idEvento=dados.get("idEvento"),
             idTrilha=dados["idTrilha"],

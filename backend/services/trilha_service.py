@@ -48,9 +48,6 @@ class TrilhaService:
         return self.repository.medias_avaliacao()
 
     def proximas(self, latitude, longitude, limite=6):
-        pontos = {}
-        for cp in self.repository.pontos_proximos():
-            pontos.setdefault(cp.idTrilha, (cp.latitude, cp.longitude))
         trilhas = {t.idTrilha: t for t in self.listar_todos()}
         def distancia(coord):
             lat, lon = coord
@@ -58,7 +55,11 @@ class TrilhaService:
             dlat, dlon = b-a, math.radians(lon-longitude)
             h = math.sin(dlat/2)**2 + math.cos(a)*math.cos(b)*math.sin(dlon/2)**2
             return 6371 * 2 * math.asin(math.sqrt(h))
-        resultados = [(trilhas[i], round(distancia(p), 1)) for i,p in pontos.items() if i in trilhas]
+        proximidade = {}
+        for cp in self.repository.pontos_proximos():
+            km = distancia((cp.latitude, cp.longitude))
+            proximidade[cp.idTrilha] = min(km, proximidade.get(cp.idTrilha, km))
+        resultados = [(trilhas[i], round(km, 1)) for i, km in proximidade.items() if i in trilhas]
         return sorted(resultados, key=lambda item: item[1])[:limite]
         
 

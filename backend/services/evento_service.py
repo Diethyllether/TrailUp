@@ -102,6 +102,16 @@ class EventoService:
         if evento.idCriador != id_usuario:
             raise PermissionError("apenas o criador pode editar a sala")
 
+        titulo = dados.get("titulo", evento.titulo)
+        tipo = dados.get("tipo", evento.tipo)
+        vagas = dados.get("vagas", evento.vagas)
+        if not titulo or not str(titulo).strip():
+            raise ValueError("titulo é obrigatório")
+        if tipo not in ("INDIVIDUAL", "GRUPO"):
+            raise ValueError("tipo deve ser INDIVIDUAL ou GRUPO")
+        if vagas is not None and int(vagas) < 1:
+            raise ValueError("vagas deve ser maior que zero")
+
         for campo in (
             "titulo", "descricao", "data", "horarioSaida", "imediata",
             "vagas", "tipo", "latitude", "longitude",

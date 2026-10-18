@@ -1,216 +1,161 @@
 # TrailUp
 
-> Plataforma web social de trilhas para encontrar rotas, organizar expedições, participar de grupos e registrar experiências.
+Aplicação web para descobrir trilhas, consultar percursos e checkpoints, avaliar trilhas, salvar favoritos e organizar eventos em grupo.
 
-O TrailUp foi migrado do aplicativo Flutter para um **site Flask + Jinja2** em arquitetura MVC. A persistência permanece em **MySQL** e os mapas das trilhas são exibidos online com **Google Maps JavaScript API**.
+O projeto tem frontend estático em HTML, CSS e JavaScript e uma API REST em Flask. Os dados são armazenados em MySQL; os mapas das trilhas são renderizados com MapLibre GL e tiles do OpenStreetMap.
 
-A antiga funcionalidade de **download de mapas offline foi descontinuada**. O site usa os checkpoints GPS já cadastrados para desenhar a rota diretamente no Google Maps, sem salvar pacotes de tiles no dispositivo.
+```text
+Navegador (frontend) ⇄ API Flask (/api) → Services → Repositories/SQLAlchemy → MySQL
+```
 
 ## Tecnologias
 
-| Camada | Tecnologia |
-|---|---|
-| Backend | Python + Flask |
-| Frontend web | Jinja2 + HTML + CSS + JavaScript |
-| Mapas | Google Maps JavaScript API |
-| ORM | Flask-SQLAlchemy |
-| Banco de Dados | MySQL + PyMySQL |
+- Python, Flask e Flask-SQLAlchemy
+- MySQL com PyMySQL
+- HTML, CSS e JavaScript
+- MapLibre GL e OpenStreetMap (necessários para exibir mapas; carregados pela internet)
 
-## Arquitetura
+## Requisitos para executar
 
-As regras de negócio continuam centralizadas no backend:
+- Python 3.10 ou superior
+- MySQL 8 ou superior
+- Navegador moderno
 
-```text
-Página Jinja2 -> Controller Flask -> Service -> Model/Repository -> MySQL
-```
+## Instalação e execução
 
-Responsabilidades das camadas:
+Abra dois terminais na raiz do projeto. Os exemplos abaixo usam PowerShell.
 
-- **View:** templates Jinja2 e arquivos estáticos; apenas apresentam dados.
-- **Controller:** traduz HTTP/formulários para chamadas de casos de uso e respostas.
-- **Service:** concentra validações, regras de negócio e orquestração.
-- **Repository:** é a única camada que consulta ou persiste com SQLAlchemy.
-- **Model:** representa as entidades e o mapeamento objeto-relacional.
+### 1. Criar o banco
 
-Os Services e Controllers aceitam suas dependências por construtor. Isso reduz
-acoplamento, permite substituir implementações e mantém cada classe com uma
-responsabilidade principal, em conformidade com os princípios SOLID.
-
-O frontend web reutiliza os mesmos Services e Models da aplicação, evitando duplicar regras de negócio no JavaScript.
-
-The web frontend is organized under `frontend/`: templates are in
-`frontend/templates`, styles in `frontend/static/css`, and JavaScript in
-`frontend/static/js`. Flask serves the static assets at `/static`.
-
-Estrutura principal:
-
-```text
-TrailUp/
-├── backend/
-│   ├── controllers/
-│   │   └── web_controller.py
-│   ├── database/
-│   ├── models/
-│   ├── repositories/
-│   ├── services/
-│   ├── static/
-│   │   └── css/site.css
-│   ├── templates/
-│   │   ├── base.html
-│   │   ├── home.html
-│   │   ├── trail_detail.html
-│   │   ├── events.html
-│   │   ├── favorites.html
-│   │   ├── login.html
-│   │   ├── register.html
-│   │   └── profile.html
-│   ├── app.py
-│   ├── config.py
-│   └── requirements.txt
-├── frontend/              # Flutter legado/descontinuado
-└── README.md
-```
-
-## Funcionalidades web
-
-1. Cadastro de usuário
-2. Login e sessão no navegador
-3. Busca de trilhas por nome/localização
-4. Filtro por dificuldade
-5. Visualização de detalhes da trilha
-6. Visualização da rota e checkpoints no Google Maps
-7. Adicionar e remover trilhas dos favoritos
-8. Listar favoritos do usuário
-9. Listar e criar eventos/expedições
-10. Participar de eventos/expedições
-11. Perfil básico do usuário
-
-Os recursos do backend são acessados pelas páginas MVC por meio do `WebController` e da camada de services.
-
-## Google Maps
-
-A página de detalhes da trilha transforma os checkpoints armazenados no banco em uma `Polyline` do Google Maps. O primeiro ponto recebe o marcador de início e o último recebe o marcador de fim.
-
-Para habilitar o mapa:
-
-1. Crie um projeto no Google Cloud.
-2. Ative **Maps JavaScript API**.
-3. Crie uma API Key.
-4. Em produção, restrinja a chave ao domínio do TrailUp.
-5. Exporte a variável `GOOGLE_MAPS_API_KEY` antes de iniciar o Flask.
-
-Exemplo no PowerShell:
+Inicie o MySQL e execute o esquema:
 
 ```powershell
-$env:GOOGLE_MAPS_API_KEY = "SUA_CHAVE"
+mysql -u root -p < backend/database/create_database.sql
 ```
 
-Linux/macOS:
+Opcionalmente, carregue dados de demonstração:
 
-```bash
-export GOOGLE_MAPS_API_KEY="SUA_CHAVE"
+```powershell
+mysql -u root -p trilhas_db < backend/database/seed_dados_exemplo.sql
 ```
 
-Se a chave não estiver configurada, a página continua funcionando e informa que o mapa precisa ser configurado.
+O seed SQL inclui uma trilha real, Pedra Bonita (RJ), e um registro fictício identificado como demonstração. Cadastre uma conta pela interface para usar recursos que exigem autenticação.
 
-## Mapas offline
+### 2. Iniciar a API Flask
 
-O recurso foi removido da aplicação ativa após a migração para web. Não há mais botão de download de mapa nem rota `/api` registrada para mapas offline. O modelo/tabela legado pode permanecer no banco durante a transição para não exigir uma migração destrutiva imediata, mas não faz parte do fluxo atual do site.
-
-## Como executar
-
-### Pré-requisitos
-
-- Python 3.10+
-- MySQL
-- Chave da Google Maps JavaScript API para exibir mapas
-
-### 1. Banco de dados
-
-```bash
-cd backend
-mysql -u root -p < database/create_database.sql
-```
-
-Para instalar também as Stored Procedures dos relatórios:
-
-```bash
-mysql -u root -p < database/procedures_relatorios.sql
-```
-
-### 2. Ambiente Python
-
-Windows PowerShell:
+No primeiro terminal:
 
 ```powershell
 cd backend
-python -m venv venv
-venv\Scripts\activate
+python -m venv .venv
+.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
-$env:DATABASE_URL = "mysql+pymysql://root:SUASENHA@localhost:3306/trilhas_db"
-$env:SECRET_KEY = "troque-esta-chave-em-producao"
-$env:GOOGLE_MAPS_API_KEY = "SUA_CHAVE"
+$env:DATABASE_URL = "mysql+pymysql://root:SUA_SENHA@localhost:3306/trilhas_db"
+$env:SECRET_KEY = "defina-uma-chave-local"
+$env:FRONTEND_ORIGIN = "http://localhost:8000"
+# Configure SMTP para enviar links de recuperação de senha
+$env:SMTP_HOST = "smtp.exemplo.com"
+$env:SMTP_PORT = "587"
+$env:SMTP_USER = "seu-usuario"
+$env:SMTP_PASSWORD = "sua-senha-de-aplicativo"
+$env:SMTP_FROM = "nao-responda@exemplo.com"
+$env:FRONTEND_URL = "http://localhost:8000"
 python app.py
 ```
 
-Linux/macOS:
+Sem SMTP configurado, em modo de desenvolvimento o formulário de recuperação mostra um link de redefinição de uso local.
 
-```bash
-cd backend
-python -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-export DATABASE_URL="mysql+pymysql://root:SUASENHA@localhost:3306/trilhas_db"
-export SECRET_KEY="troque-esta-chave-em-producao"
-export GOOGLE_MAPS_API_KEY="SUA_CHAVE"
-python app.py
+Se o usuário MySQL não tiver senha, ajuste `DATABASE_URL` para `mysql+pymysql://root:@localhost:3306/trilhas_db`. A API ficará disponível em `http://localhost:5000`.
+
+### 3. Iniciar o frontend estático
+
+No segundo terminal, a partir da raiz do projeto:
+
+```powershell
+cd frontend
+python -m http.server 8000
 ```
 
-Abra:
+Abra `http://localhost:8000`. O endereço da API é definido em `frontend/config.js` (por padrão, `http://localhost:5000/api`). Se mudar a porta ou o endereço do frontend, ajuste `FRONTEND_ORIGIN` no terminal da API para a origem exata.
+
+## API REST
+
+Base local: `http://localhost:5000/api`. As rotas recebem e retornam JSON, salvo respostas sem conteúdo. Sessões usam cookie; nas chamadas do navegador, envie credenciais. O frontend já faz isso.
+
+| Método | Rota | Autenticação | Descrição |
+|---|---|---|---|
+| `GET` | `/session` | Não | Retorna o usuário da sessão atual ou `null`. |
+| `POST` | `/auth/register` | Não | Cria conta e inicia sessão. JSON: `nome`, `email`, `senha` e `aceitouTermo: true`. |
+| `POST` | `/auth/login` | Não | Inicia sessão. JSON: `email`, `senha`. |
+| `POST` | `/auth/logout` | Não | Encerra a sessão. |
+| `GET` | `/trails` | Não | Lista trilhas. Filtros: `q`, `difficulty`, `sort`, `maxDistance`, `maxDuration`, `minRating`; `lat` e `lon` limitam às próximas. |
+| `GET` | `/trails/<trail_id>` | Não | Detalhes, checkpoints, eventos, avaliações, checklist e média. |
+| `POST` | `/trails/<trail_id>/favorite` | Sim | Adiciona a trilha aos favoritos. |
+| `DELETE` | `/trails/<trail_id>/favorite` | Sim | Remove a trilha dos favoritos. |
+| `GET` | `/favorites` | Sim | Lista as trilhas favoritas do usuário. |
+| `GET` | `/events` | Não | Lista eventos, estado de participação e trilhas disponíveis. |
+| `POST` | `/events` | Sim | Cria evento. JSON aceita `titulo`, `descricao`, `data` (`AAAA-MM-DD`), `horario` (`HH:MM`), `imediata`, `vagas`, `tipo` e `idTrilha`. |
+| `POST` | `/events/<event_id>/participation` | Sim | Participa do evento. |
+| `DELETE` | `/events/<event_id>/participation` | Sim | Sai do evento. |
+| `POST` | `/trails/<trail_id>/reviews` | Sim | Publica avaliação. JSON: `nota` (1 a 5) e `comentario`. |
+| `PUT`, `DELETE` | `/reviews/<review_id>` | Sim | Edita ou remove avaliação própria. |
+| `GET`, `POST` | `/history` | Sim | Lista o histórico e registra uma trilha concluída. |
+| `PATCH` | `/profile` | Sim | Atualiza nome, e-mail e URL da foto do usuário. |
+| `PUT`, `DELETE` | `/events/<event_id>` | Sim | Edita ou cancela evento próprio. |
+| `POST` | `/events/<event_id>/comments` | Sim | Publica comentário como participante confirmado. |
+| `POST` | `/reports` | Sim | Registra denúncia de bug, trilha, evento ou outro problema. |
+| `POST` | `/auth/password-reset` | Não | Solicita link de recuperação por e-mail. |
+| `POST` | `/auth/password-reset/confirm` | Não | Redefine senha com token válido. |
+
+Exemplo de busca:
 
 ```text
-http://localhost:5000/
+GET http://localhost:5000/api/trails?q=pedra&difficulty=FACIL
 ```
 
-Health check da API:
+Falhas são retornadas em JSON no formato `{"error":"mensagem"}`. Rotas que exigem autenticação retornam HTTP `401` sem sessão válida. A API permite CORS somente para a origem definida em `FRONTEND_ORIGIN`.
+
+## Mapas
+
+O frontend usa MapLibre GL para renderizar os mapas das trilhas com tiles do OpenStreetMap. Não é necessária uma chave Google Maps. Os mapas dependem de conexão com a internet e da disponibilidade do serviço de tiles.
+
+## Estrutura do projeto
 
 ```text
-GET http://localhost:5000/api/health
+backend/
+  api_controller.py       # Rotas da API JSON
+  app.py                  # Configuração e inicialização Flask
+  database/               # Esquema, migrações, relatórios e seed SQL
+  models/                 # Modelos SQLAlchemy
+  repositories/           # Acesso a dados
+  services/               # Regras de negócio
+  requirements.txt
+frontend/
+  index.html
+  config.js               # Endereço da API
+  static/css/
+  static/js/
 ```
 
-Resposta esperada:
+## Requisitos do projeto
 
-```json
-{"status":"ok","service":"TrailUp API + Web"}
-```
-
-## Frontend web e Flutter legado
-
-O site Jinja2 está em `frontend/templates`, com CSS e JavaScript em
-`frontend/static`. O aplicativo Flutter legado permanece em `frontend/lib`;
-o produto web é executado pelo Flask em `http://localhost:5000/`.
-
-## Relatórios de banco de dados
-
-```http
-GET /api/relatorios/trilhas
-GET /api/relatorios/usuarios/<id>/favoritos
-GET /api/relatorios/usuarios/<id>/resumo
-GET /api/relatorios/usuarios/ranking
-```
-
-Mais detalhes:
-
-- `backend/ATIVIDADE_FUNCIONALIDADES_BANCO.md`
-- `backend/README.md`
-
-## Time
-
-| Nome | Papel |
-|---|---|
-| Felipe Cornélio Leite | Front End |
-| Nikolas Ansur Proti Soares | Front End |
-| Lucca Freitas Leandro | Banco de Dados / Infra |
-| Pedro da Silva Brum | Banco de Dados / Infra |
-| Miguel Seleme de Azevedo | Back End |
-| Miguel Anthony de Oliveira | Back End |
+1. O sistema deve permitir buscar trilhas pelo nome ou localização.
+2. O sistema deve mostrar a distância, a duração e o nível de dificuldade de cada trilha.
+3. O sistema deve exibir um mapa específico para cada trilha.
+4. O sistema deve permitir publicar avaliações e comentários sobre trilhas.
+5. O sistema deve permitir salvar trilhas como favoritas.
+6. O sistema deve fornecer um checklist de equipamentos para as trilhas.
+7. O sistema deve permitir criar eventos para trilhas.
+8. O sistema deve registrar o histórico de trilhas realizadas.
+9. O sistema deve permitir editar ou excluir a própria avaliação.
+10. O sistema deve exibir a nota média da trilha, calculada a partir das avaliações.
+11. O sistema deve permitir editar o perfil do usuário (nome, e-mail e foto).
+12. O sistema deve listar os participantes confirmados de um evento, exibindo apenas seus nomes.
+13. O sistema deve permitir ordenar ou filtrar trilhas por distância, duração ou nota.
+14. O sistema deve permitir comentários em eventos para que participantes combinem detalhes.
+15. O sistema deve exibir trilhas próximas ao usuário.
+16. O sistema deve oferecer um botão para reportar problemas, como bugs ou informações sobre trilhas.
+17. O sistema deve permitir concluir uma trilha, registrando a data, o tempo e uma avaliação pessoal.
+18. O sistema deve permitir recuperar a senha por meio de telas e do envio de um link.
+19. O sistema deve permitir que o organizador edite ou cancele seus eventos.
+20. O sistema deve salvar as marcações do checklist neste navegador, preservando os itens marcados ao sair da página.

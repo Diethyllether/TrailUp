@@ -140,8 +140,46 @@ textarea { resize: vertical; min-height: 110px; }
 .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 18px 0; }
 .stat { padding: 15px; border-radius: 14px; background: var(--surface-2); }
 .stat strong { display: block; font-size: 1.2rem; margin-bottom: 3px; }
-.map { width: 100%; min-height: 420px; border-radius: 14px; overflow: hidden; background: var(--surface); border: 1px solid var(--border); }
+.map { position: relative; width: 100%; min-height: 420px; border-radius: 14px; overflow: hidden; background: var(--surface); border: 1px solid var(--border); }
 .map-placeholder { display: grid; place-items: center; min-height: 420px; text-align: center; padding: 30px; color: var(--muted); background: var(--surface); border-radius: 14px; }
+
+.trail-page { padding-top: 32px; }
+.back-link { display: inline-flex; margin-bottom: 24px; color: var(--muted); font-size: .92rem; }
+.back-link:hover { color: var(--green-light); }
+.trail-heading { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 28px; border: 1px solid var(--border); border-radius: 20px; background: radial-gradient(ellipse at top right, rgba(61,184,97,.12), transparent 58%), var(--surface); }
+.trail-heading h1 { margin: 7px 0 14px; }
+.trail-tags { display: flex; flex-wrap: wrap; gap: 9px; color: var(--muted); }
+.trail-tags span { padding: 7px 11px; border: 1px solid var(--border); border-radius: 999px; background: rgba(15,20,15,.45); font-size: .82rem; }
+.trail-description { max-width: 850px; padding: 30px 4px 10px; }
+.trail-description h2 { margin-bottom: 10px; }
+.trail-description p { max-width: 78ch; margin: 0; color: #D8E0D3; font-size: 1.04rem; line-height: 1.85; white-space: pre-line; }
+.trail-section { margin-top: 34px; }
+.trail-section .section-header { align-items: center; margin-bottom: 18px; }
+.trail-section .section-header h2 { margin: 5px 0 0; }
+.map { min-height: 480px; box-shadow: 0 16px 45px rgba(0,0,0,.2); }
+.checkpoint-list { display: flex; flex-wrap: wrap; gap: 12px; margin: 16px 0 0; padding: 0; list-style: none; }
+.checkpoint-list li { display: flex; flex: 1 1 190px; align-items: center; gap: 11px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); }
+.checkpoint-number { display: grid; flex: 0 0 30px; width: 30px; height: 30px; place-items: center; border-radius: 50%; background: var(--surface-2); color: var(--green-light); font-weight: 800; }
+.checkpoint-list li:first-child .checkpoint-number { background: var(--green); color: #fff; }
+.checkpoint-list li:last-child .checkpoint-number { background: var(--amber); color: #1A211A; }
+.checkpoint-list strong, .checkpoint-list small { display: block; }
+.checkpoint-list strong { font-size: .9rem; }
+.checkpoint-list small { margin-top: 3px; color: var(--muted); font-size: .78rem; }
+.rating-summary { padding: 8px 12px; border-radius: 999px; background: var(--surface-2); color: var(--amber); font-weight: 700; font-size: .88rem; }
+.review-list { display: grid; gap: 12px; }
+.review-card { padding: 19px 21px; border: 1px solid var(--border); border-radius: 16px; background: var(--surface); }
+.review-card-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.review-rating { color: var(--amber); font-size: .88rem; font-weight: 700; }
+.review-card p { margin: 12px 0 0; color: #D8E0D3; line-height: 1.75; white-space: pre-line; overflow-wrap: anywhere; }
+.review-empty { margin-bottom: 16px; }
+.review-form { display: grid; gap: 15px; max-width: 760px; margin-top: 20px; padding: 24px; }
+.review-form h3 { margin: 0 0 2px; }
+.review-form textarea { min-height: 130px; line-height: 1.6; }
+.review-form .button { justify-self: start; }
+.review-signin { margin-top: 18px; color: var(--muted); }
+.review-signin a { color: var(--green-light); font-weight: 700; }
+.maplibregl-popup-content { color: #172017; font-family: Inter, sans-serif; font-weight: 600; border-radius: 10px; }
+.map-message { position: absolute; z-index: 2; inset: auto 18px 18px; width: fit-content; max-width: calc(100% - 36px); padding: 10px 14px; border: 1px solid var(--border); border-radius: 12px; background: rgba(26,33,26,.94); color: var(--text); font-size: .85rem; line-height: 1.5; box-shadow: 0 8px 24px rgba(0,0,0,.25); }
 
 .event-list { display: grid; gap: 10px; }
 .event-row { display: grid; grid-template-columns: 1fr auto; gap: 16px; align-items: center; padding: 16px; border-radius: 14px; background: var(--surface-2); }
@@ -175,4 +213,8 @@ footer { display: flex; justify-content: space-between; gap: 20px; padding: 30px
   .event-row { grid-template-columns: 1fr; }
   footer { flex-direction: column; }
   .hero { padding-top: 28px; }
+  .trail-heading { align-items: flex-start; flex-direction: column; padding: 22px; }
+  .map, .map-placeholder { min-height: 360px; }
+  .trail-section .section-header { align-items: flex-start; flex-direction: column; }
+  .checkpoint-list li { flex-basis: 100%; }
 }
