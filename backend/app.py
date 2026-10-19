@@ -21,7 +21,11 @@ def create_app():
 
     @app.get("/termo-consentimento")
     def consent_term():
-        termo_path = os.path.join(os.path.dirname(app.root_path), "TermoDeConsentimentoTrailUp.pdf")
+        termo_path = os.path.join(
+            os.path.dirname(app.root_path), "docs", "TermoDeConsentimentoTrailUp.pdf"
+        )
+        if not os.path.isfile(termo_path):
+            return jsonify(error="PDF do termo de consentimento ainda não foi disponibilizado."), 404
         return send_file(termo_path, mimetype="application/pdf", as_attachment=False)
 
     @app.after_request
