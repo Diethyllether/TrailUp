@@ -67,7 +67,7 @@ def register():
     if data.get("aceitouTermo") is not True:
         return fail("é necessário confirmar a leitura do Termo de Consentimento para criar a conta")
     try:
-        user = users.cadastrar_service.executar({"nome": (data.get("nome") or "").strip(), "email": (data.get("email") or "").strip(), "senha": data.get("senha") or ""})
+        user = users.cadastrar_service.executar({"nome": (data.get("nome") or "").strip(), "email": (data.get("email") or "").strip(), "senha": data.get("senha") or "", "aceitouTermo": data.get("aceitouTermo")})
         session.clear(); session["id_usuario"] = user.idUsuario
         return jsonify(user=user.to_dict()), 201
     except ValueError as error:

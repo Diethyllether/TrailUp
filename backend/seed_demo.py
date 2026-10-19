@@ -154,6 +154,8 @@ def _get_or_create_user(nome, email):
         email=email,
         senha=hash_senha(DEMO_SENHA),
         dataCadastro=datetime.date.today(),
+        termoAceitoEm=datetime.datetime.now(),
+        versaoTermo="1.0-demo",
     )
     db.session.add(usuario)
     db.session.commit()

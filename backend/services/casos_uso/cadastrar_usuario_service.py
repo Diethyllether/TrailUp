@@ -11,6 +11,8 @@ class CadastrarUsuarioService:
     def executar(self, dados):
         if not dados.get("nome") or not dados.get("email") or not dados.get("senha"):
             raise ValueError("nome, email e senha são obrigatórios")
+        if dados.get("aceitouTermo") is not True:
+            raise ValueError("é necessário aceitar o Termo de Consentimento")
 
         if self.repository.buscar_por_email(dados["email"]):
             raise ValueError("já existe um usuário cadastrado com este email")
@@ -21,5 +23,7 @@ class CadastrarUsuarioService:
             senha=hash_senha(dados["senha"]),
             fotoPerfil=dados.get("fotoPerfil"),
             dataCadastro=datetime.date.today(),
+            termoAceitoEm=datetime.datetime.now(),
+            versaoTermo="1.0",
         )
         return self.repository.criar(usuario)

@@ -5,8 +5,7 @@ CREATE DATABASE IF NOT EXISTS trilhas_db
 USE trilhas_db;
 
 -- ============================================================
--- TrailUp - modelo atual do banco de dados
--- Versão web Flask + Jinja2 + Google Maps
+-- TrailUp - backend Flask e frontend estatico independente
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS usuario (
@@ -16,6 +15,8 @@ CREATE TABLE IF NOT EXISTS usuario (
     senha VARCHAR(255) NOT NULL,
     fotoPerfil VARCHAR(255) NULL,
     dataCadastro DATE NOT NULL DEFAULT (CURRENT_DATE),
+    termoAceitoEm DATETIME NOT NULL,
+    versaoTermo VARCHAR(20) NOT NULL,
     INDEX idx_usuario_nome (nome)
 ) ENGINE=InnoDB;
 
@@ -45,6 +46,28 @@ CREATE TABLE IF NOT EXISTS checklist_item (
     CONSTRAINT fk_checklist_trilha FOREIGN KEY (idTrilha) REFERENCES trilha(idTrilha)
         ON UPDATE CASCADE ON DELETE CASCADE,
     INDEX idx_checklist_trilha (idTrilha, obrigatorio)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS checklist_usuario (
+    idUsuario INT NOT NULL,
+    idChecklistItem INT NOT NULL,
+    marcado BOOLEAN NOT NULL DEFAULT FALSE,
+    PRIMARY KEY (idUsuario, idChecklistItem),
+    CONSTRAINT fk_checklist_usuario_usuario FOREIGN KEY (idUsuario) REFERENCES usuario(idUsuario)
+        ON UPDATE CASCADE ON DELETE CASCADE,
+    CONSTRAINT fk_checklist_usuario_item FOREIGN KEY (idChecklistItem) REFERENCES checklist_item(idChecklistItem)
+        ON UPDATE CASCADE ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS token_recuperacao (
+    idToken INT AUTO_INCREMENT PRIMARY KEY,
+    idUsuario INT NOT NULL,
+    tokenHash CHAR(64) NOT NULL UNIQUE,
+    expiraEm DATETIME NOT NULL,
+    usadoEm DATETIME NULL,
+    CONSTRAINT fk_token_recuperacao_usuario FOREIGN KEY (idUsuario) REFERENCES usuario(idUsuario)
+        ON UPDATE CASCADE ON DELETE CASCADE,
+    INDEX idx_token_recuperacao_expira (expiraEm)
 ) ENGINE=InnoDB;
 
 
