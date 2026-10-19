@@ -63,7 +63,7 @@ $env:FRONTEND_URL = "http://localhost:8000"
 python app.py
 ```
 
-Sem SMTP configurado, em modo de desenvolvimento o formulário de recuperação mostra um link de redefinição de uso local.
+Sem SMTP configurado, a recuperação de senha não envia o link. A API mantém a mesma resposta genérica, e nunca inclui o token na resposta. Configure SMTP para habilitar o envio; os tokens são armazenados como hash, expiram em uma hora e só podem ser usados uma vez.
 
 Se o usuário MySQL não tiver senha, ajuste `DATABASE_URL` para `mysql+pymysql://root:@localhost:3306/trilhas_db`. A API ficará disponível em `http://localhost:5000`.
 

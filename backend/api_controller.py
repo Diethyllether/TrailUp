@@ -4,7 +4,6 @@ from functools import wraps
 from flask import Blueprint, jsonify, request, session
 from sqlalchemy.exc import SQLAlchemyError
 
-from config import Config
 from extensions import db
 from services.avaliacao_service import AvaliacaoService
 from services.checklist_service import ChecklistService
@@ -17,12 +16,14 @@ from services.trilha_service import TrilhaService
 from services.usuario_service import UsuarioService
 from services.usuario.solicitar_recuperacao_senha_service import SolicitarRecuperacaoSenhaService
 from services.usuario.redefinir_senha_service import RedefinirSenhaService
+from services.relatorio_service import RelatorioService
 
 api_bp = Blueprint("api", __name__)
 users, trails, events = UsuarioService(), TrilhaService(), EventoService()
 favorites, ratings = FavoritoService(), AvaliacaoService()
 checkpoints, checklists, history = CheckpointService(), ChecklistService(), HistoricoService()
-reports = DenunciaService()
+denuncias = DenunciaService()
+relatorios = RelatorioService()
 
 
 def fail(message, status=400):
@@ -294,17 +295,29 @@ def manage_event(event_id):
 @authenticated
 def create_report():
     try:
-        report = reports.criar(session["id_usuario"], request.get_json(silent=True) or {})
+        report = denuncias.criar(session["id_usuario"], request.get_json(silent=True) or {})
         return jsonify(report=report.to_dict()), 201
     except ValueError as error:
         return fail(error)
+
+
+@api_bp.get("/reports/ranking")
+def ranking_usuarios():
+    return jsonify(items=relatorios.ranking_usuarios(request.args.get("limite", 10)))
+
+
+@api_bp.get("/reports/summary")
+@authenticated
+def resumo_usuario():
+    resumo = relatorios.resumo_usuario(session["id_usuario"])
+    return jsonify(item=resumo)
 
 
 @api_bp.post("/auth/password-reset")
 def request_password_reset():
     email = ((request.get_json(silent=True) or {}).get("email") or "").strip()
     SolicitarRecuperacaoSenhaService().executar(email)
-    return jsonify(message="Se o e-mail estiver cadastrado, enviaremos um link de recupera??o.")
+    return jsonify(message="Se o e-mail estiver cadastrado, enviaremos um link de recuperacao.")
 
 
 @api_bp.post("/auth/password-reset/confirm")
