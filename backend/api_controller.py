@@ -1,8 +1,5 @@
 from datetime import date, datetime
-from email.message import EmailMessage
 from functools import wraps
-import os
-import smtplib
 
 from flask import Blueprint, jsonify, request, session
 from sqlalchemy.exc import SQLAlchemyError
@@ -18,6 +15,8 @@ from services.favorito_service import FavoritoService
 from services.historico_service import HistoricoService
 from services.trilha_service import TrilhaService
 from services.usuario_service import UsuarioService
+from services.usuario.solicitar_recuperacao_senha_service import SolicitarRecuperacaoSenhaService
+from services.usuario.redefinir_senha_service import RedefinirSenhaService
 
 api_bp = Blueprint("api", __name__)
 users, trails, events = UsuarioService(), TrilhaService(), EventoService()
@@ -301,43 +300,18 @@ def create_report():
         return fail(error)
 
 
-def send_recovery_email(email, token):
-    host = os.environ.get("SMTP_HOST")
-    if not host:
-        return False
-    message = EmailMessage()
-    message["Subject"] = "Recuperação de senha TrailUp"
-    message["From"] = os.environ.get("SMTP_FROM", os.environ.get("SMTP_USER", "trailup@localhost"))
-    message["To"] = email
-    frontend = os.environ.get("FRONTEND_URL", "http://localhost:8000")
-    message.set_content(f"Para redefinir sua senha, acesse: {frontend}/?page=reset-password&token={token}\nO link expira em 1 hora.")
-    with smtplib.SMTP(host, int(os.environ.get("SMTP_PORT", "587")), timeout=10) as server:
-        server.starttls()
-        if os.environ.get("SMTP_USER"):
-            server.login(os.environ["SMTP_USER"], os.environ.get("SMTP_PASSWORD", ""))
-        server.send_message(message)
-    return True
-
-
 @api_bp.post("/auth/password-reset")
 def request_password_reset():
-    email = (request.get_json(silent=True) or {}).get("email", "").strip()
-    token = users.solicitar_recuperacao_senha(email)
-    if token:
-        try:
-            sent = send_recovery_email(email, token)
-        except (OSError, smtplib.SMTPException) as error:
-            return fail(f"não foi possível enviar o e-mail: {error}", 503)
-        if not sent and Config.DEBUG:
-            return jsonify(message="SMTP não configurado; link disponível apenas em modo de desenvolvimento", resetLink=f"{os.environ.get('FRONTEND_URL', 'http://localhost:8000')}/?page=reset-password&token={token}")
-    return jsonify(message="Se o e-mail estiver cadastrado, enviaremos um link de recuperação.")
+    email = ((request.get_json(silent=True) or {}).get("email") or "").strip()
+    SolicitarRecuperacaoSenhaService().executar(email)
+    return jsonify(message="Se o e-mail estiver cadastrado, enviaremos um link de recupera??o.")
 
 
 @api_bp.post("/auth/password-reset/confirm")
 def confirm_password_reset():
     data = request.get_json(silent=True) or {}
     try:
-        users.redefinir_senha(data.get("token"), data.get("senha", ""))
+        RedefinirSenhaService().executar(data.get("token"), data.get("senha", ""))
         return jsonify(message="Senha redefinida com sucesso.")
     except ValueError as error:
         return fail(error)

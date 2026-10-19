@@ -46,3 +46,7 @@ class Usuario(CrudMixin, db.Model):
         if include_senha:
             data["senha"] = self.senha
         return data
+
+    @classmethod
+    def buscar_por_email(cls, email):
+        return cls.query.filter_by(email=email).first()

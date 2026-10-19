@@ -13,7 +13,9 @@ DELIMITER $$
 -- p_dificuldade for NULL. Inclui métricas úteis para os cards web.
 -- ============================================================
 CREATE PROCEDURE sp_trilhas_por_dificuldade(
-    IN p_dificuldade VARCHAR(50)
+    IN p_dificuldade VARCHAR(50),
+    IN p_localizacao VARCHAR(200),
+    IN p_ordem VARCHAR(20)
 )
 BEGIN
     SELECT
@@ -52,13 +54,13 @@ BEGIN
         FROM historicoTrilha
         GROUP BY idTrilha
     ) hist ON hist.idTrilha = t.idTrilha
-    WHERE p_dificuldade IS NULL
-       OR p_dificuldade = ''
-       OR t.dificuldade = p_dificuldade
+    WHERE (p_dificuldade IS NULL OR p_dificuldade = '' OR t.dificuldade = p_dificuldade)
+      AND (p_localizacao IS NULL OR t.localizacao LIKE CONCAT('%', p_localizacao, '%'))
     ORDER BY
-        mediaNota DESC,
-        quantidadeAvaliacoes DESC,
-        quantidadeFavoritos DESC,
+        CASE WHEN p_ordem = 'distancia' THEN t.distancia END ASC,
+        CASE WHEN p_ordem = 'nome' THEN t.nome END ASC,
+        CASE WHEN p_ordem NOT IN ('distancia', 'nome') THEN mediaNota END DESC,
+        CASE WHEN p_ordem NOT IN ('distancia', 'nome') THEN quantidadeAvaliacoes END DESC,
         t.nome ASC;
 END$$
 

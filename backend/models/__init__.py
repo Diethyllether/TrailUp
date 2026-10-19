@@ -15,6 +15,7 @@ from .notificacao_model import Notificacao
 from .participante_evento_model import ParticipanteEvento
 from .registro_realizado_model import RegistroRealizado
 from .trilha_model import Trilha
+from .token_recuperacao_model import TokenRecuperacao
 from .usuario_model import Usuario
 
 __all__ = [
@@ -33,5 +34,6 @@ __all__ = [
     "ParticipanteEvento",
     "RegistroRealizado",
     "Trilha",
+    "TokenRecuperacao",
     "Usuario",
 ]
