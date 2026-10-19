@@ -6,8 +6,16 @@ from sqlalchemy.exc import SQLAlchemyError
 from config import Config
 from extensions import db
 import models
-from api_controller import api_bp
 from routes.relatorio_routes import relatorio_bp
+from routes.auth_routes import auth_bp
+from routes.usuario_routes import usuario_bp
+from routes.trilha_routes import trilha_bp
+from routes.favorito_routes import favorito_bp
+from routes.evento_routes import evento_bp
+from routes.avaliacao_routes import avaliacao_bp
+from routes.historico_routes import historico_bp
+from routes.checklist_routes import checklist_bp
+from routes.denuncia_routes import denuncia_bp
 from utils.excecoes import ErroDeDominio
 
 
@@ -18,8 +26,19 @@ def create_app():
     app.config.from_object(Config)
     app.url_map.strict_slashes = False
     db.init_app(app)
-    app.register_blueprint(api_bp, url_prefix="/api")
-    app.register_blueprint(relatorio_bp, url_prefix="/api")
+    for blueprint in (
+        auth_bp,
+        usuario_bp,
+        trilha_bp,
+        favorito_bp,
+        evento_bp,
+        avaliacao_bp,
+        historico_bp,
+        checklist_bp,
+        denuncia_bp,
+        relatorio_bp,
+    ):
+        app.register_blueprint(blueprint, url_prefix="/api")
 
     @app.get("/termo-consentimento")
     def consent_term():
