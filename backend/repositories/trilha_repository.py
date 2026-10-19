@@ -1,96 +1,73 @@
-import math
+"""Consultas especializadas de trilhas executadas por procedures MySQL."""
 
-from sqlalchemy import or_, text
-from sqlalchemy import func
+from sqlalchemy import text
 
 from extensions import db
-from models.checkpoint_model import Checkpoint
+from models.avaliacao_model import Avaliacao
 from models.trilha_model import Trilha
 
+
+def _executar(call_sql, parametros):
+    resultado = db.session.execute(text(call_sql), parametros)
+    try:
+        return [dict(linha) for linha in resultado.mappings().all()]
+    finally:
+        resultado.close()
+
+
+def _trilha_da_linha(linha):
+    campos = {
+        "idTrilha", "nome", "localizacao", "distancia", "duracao", "dificuldade",
+        "descricao", "imagemUrl", "tempoEstimadoMin",
+    }
+    return Trilha(**{chave: valor for chave, valor in linha.items() if chave in campos})
+
+
 class TrilhaRepository:
-    """Consultas com filtros combinados. CRUD simples permanece na Model."""
+    """Executa consultas de busca, filtro, avaliação e proximidade no MySQL."""
 
     model = Trilha
 
     def buscar(self, nome=None, localizacao=None, dificuldade=None, busca=None):
-        query = Trilha.query
-        if busca:
-            query = query.filter(
-                or_(Trilha.nome.ilike(f"%{busca}%"), Trilha.localizacao.ilike(f"%{busca}%"))
-            )
-        if nome:
-            query = query.filter(Trilha.nome.ilike(f"%{nome}%"))
-        if localizacao:
-            query = query.filter(Trilha.localizacao.ilike(f"%{localizacao}%"))
-        if dificuldade:
-            query = query.filter(Trilha.dificuldade == dificuldade)
-        return query.all()
+        termo = busca or nome or localizacao
+        linhas = _executar(
+            "CALL sp_buscar_trilhas(:termo, :dificuldade)",
+            {"termo": termo, "dificuldade": dificuldade},
+        )
+        return [_trilha_da_linha(linha) for linha in linhas]
 
     def listar_ordenadas(self, ordenacao=None, distancia_max=None, duracao_max=None, nota_min=None):
-        from models.avaliacao_model import Avaliacao
-        query = Trilha.query.outerjoin(Avaliacao, Avaliacao.idTrilha == Trilha.idTrilha)
-        query = query.group_by(Trilha.idTrilha)
-        if distancia_max is not None:
-            query = query.filter(Trilha.distancia <= distancia_max)
-        if duracao_max is not None:
-            query = query.filter(Trilha.duracao <= duracao_max)
-        media = func.avg(Avaliacao.nota)
-        if nota_min is not None:
-            query = query.having(func.coalesce(media, 0) >= nota_min)
-        coluna = {"distancia": Trilha.distancia, "duracao": Trilha.duracao, "nota": media}.get(ordenacao)
-        if coluna is not None:
-            ordem = coluna.desc() if ordenacao == "nota" else coluna.asc()
-            query = query.order_by(coluna.is_(None).asc(), ordem)
-        return query.all()
+        linhas = _executar(
+            "CALL sp_filtrar_trilhas(:distancia_max, :duracao_max, :nota_min, :ordem)",
+            {
+                "distancia_max": distancia_max,
+                "duracao_max": duracao_max,
+                "nota_min": nota_min,
+                "ordem": ordenacao,
+            },
+        )
+        return [_trilha_da_linha(linha) for linha in linhas]
 
     def medias_avaliacao(self):
-        from models.avaliacao_model import Avaliacao
-        rows = (Trilha.query.outerjoin(Avaliacao, Avaliacao.idTrilha == Trilha.idTrilha)
-                .with_entities(Trilha.idTrilha, func.avg(Avaliacao.nota), func.count(Avaliacao.idAvaliacao))
-                .group_by(Trilha.idTrilha).all())
-        # O frontend usa [media, quantidade] para mostrar a nota média no card.
-        return {row[0]: (row[1], row[2]) for row in rows}
+        linhas = _executar("CALL sp_medias_trilhas()", {})
+        return {
+            linha["idTrilha"]: (linha["media"], linha["quantidade"])
+            for linha in linhas
+        }
 
     def avaliacoes_com_autores(self, id_trilha):
-        from models.avaliacao_model import Avaliacao
-        from models.usuario_model import Usuario
-
-        return (
-            db.session.query(Avaliacao, Usuario.nome)
-            .join(Usuario, Usuario.idUsuario == Avaliacao.idUsuario)
-            .filter(Avaliacao.idTrilha == id_trilha)
-            .order_by(Avaliacao.data.desc(), Avaliacao.idAvaliacao.desc())
-            .all()
+        linhas = _executar(
+            "CALL sp_avaliacoes_trilha(:id_trilha)", {"id_trilha": id_trilha}
         )
-
-    def pontos_proximos(self):
-        return Checkpoint.query.filter(
-            Checkpoint.latitude.between(-90, 90), Checkpoint.longitude.between(-180, 180),
-            ~((Checkpoint.latitude == 0) & (Checkpoint.longitude == 0)),
-        ).order_by(Checkpoint.idCheckpoint).all()
+        campos = {"idAvaliacao", "nota", "comentario", "data", "idUsuario", "idTrilha"}
+        return [
+            (Avaliacao(**{chave: valor for chave, valor in linha.items() if chave in campos}),
+             linha["nomeUsuario"])
+            for linha in linhas
+        ]
 
     def trilhas_proximas(self, latitude, longitude, limite=6):
-        if db.session.get_bind().dialect.name == "mysql":
-            resultado = db.session.execute(
-                text("CALL sp_trilhas_proximas(:latitude, :longitude, :limite)"),
-                {"latitude": latitude, "longitude": longitude, "limite": limite},
-            )
-            try:
-                return [dict(linha) for linha in resultado.mappings().all()]
-            finally:
-                resultado.close()
-
-        pontos = self.pontos_proximos()
-        distances = {}
-        lat0 = math.radians(latitude)
-        for checkpoint in pontos:
-            lat, lon = math.radians(checkpoint.latitude), math.radians(checkpoint.longitude)
-            dlat = lat - lat0
-            dlon = math.radians(checkpoint.longitude - longitude)
-            haversine = math.sin(dlat / 2) ** 2 + math.cos(lat0) * math.cos(lat) * math.sin(dlon / 2) ** 2
-            km = 6371 * 2 * math.asin(math.sqrt(haversine))
-            distances[checkpoint.idTrilha] = min(km, distances.get(checkpoint.idTrilha, km))
-        return [
-            {"idTrilha": trail_id, "distanciaKm": km}
-            for trail_id, km in sorted(distances.items(), key=lambda item: item[1])[:limite]
-        ]
+        return _executar(
+            "CALL sp_trilhas_proximas(:latitude, :longitude, :limite)",
+            {"latitude": latitude, "longitude": longitude, "limite": limite},
+        )

@@ -1,17 +1,21 @@
-﻿# Fluxograma — participar de expedição
+# Fluxograma — participar de expedição
 
 ```mermaid
 flowchart TD
-  A[Tela de expedições] --> B[fetch POST /api/events/id/participation]
-  B --> C[Rota em api_controller.py]
-  C --> D[EventoService.participar]
-  D --> E[EventoRepository consulta evento e participantes]
-  E --> F{Evento existe e há vaga?}
-  F -- Não --> G[Erro de domínio / resposta HTTP]
-  F -- Sim --> H[ParticipanteEvento.salvar]
-  H --> I[(MySQL)]
-  I --> J[JSON de sucesso]
-  J --> A
+  A[Tela Expedições] -->|fetch POST /api/events/id/participation| B[evento_bp]
+  B --> C[EventoController.participar]
+  C --> D[ParticiparEventoService.executar]
+  D --> E[Evento.buscar_por_id]
+  E --> F{Expedição existe?}
+  F -- Não --> X[Recurso não encontrado]
+  F -- Sim --> G[EventoRepository.contar_participantes]
+  G -->|CALL sp_contar_participantes_evento| H[(MySQL)]
+  H --> I{Há vaga disponível?}
+  I -- Não --> Y[Conflito: expedição cheia]
+  I -- Sim --> J[ParticipanteEvento.buscar e salvar]
+  J --> H
+  H --> K[Controller devolve JSON]
+  K --> A
 ```
 
-O caminho atual utiliza ORM no repository; `sp_contar_participantes_evento` ainda não existe em `procedures.sql`. A validação de vagas é implementada no Service e não deve ser confundida com uma procedure já implantada.
+O Service também verifica duplicidade antes de gravar a participação. A rota exige sessão autenticada.

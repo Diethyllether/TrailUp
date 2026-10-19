@@ -1,82 +1,73 @@
+"""Consultas de eventos, vínculos e participantes por procedures MySQL."""
+
+import json
+
+from sqlalchemy import text
+
 from extensions import db
 from models.evento_model import Evento
-from models.evento_trilha_model import EventoTrilha
-from models.participante_evento_model import ParticipanteEvento
-from models.comentario_evento_model import ComentarioEvento
-from models.usuario_model import Usuario
+
+
+def _executar(call_sql, parametros):
+    resultado = db.session.execute(text(call_sql), parametros)
+    try:
+        return [dict(linha) for linha in resultado.mappings().all()]
+    finally:
+        resultado.close()
+
+
+def _evento_da_linha(linha):
+    campos = {
+        "idEvento", "titulo", "descricao", "data", "horarioSaida", "imediata",
+        "vagas", "tipo", "latitude", "longitude", "idCriador",
+    }
+    evento = Evento(**{chave: valor for chave, valor in linha.items() if chave in campos})
+    for campo in ("nomeCriador", "participantesAtuais", "trilhas"):
+        if campo in linha:
+            setattr(evento, campo, linha[campo])
+    return evento
+
+
+def _json_da_linha(valor):
+    if isinstance(valor, str):
+        return json.loads(valor)
+    return valor
 
 
 class EventoRepository:
-    """Acesso especializado a vínculos, participantes e consultas de eventos."""
+    """Acesso especializado a eventos, participantes e comentários."""
 
     model = Evento
 
     def listar_ativos(self):
-        return Evento.query.filter(
-            Evento.latitude.isnot(None), Evento.longitude.isnot(None)
-        ).all()
-
-    def listar_trilhas_do_evento(self, id_evento):
-        return EventoTrilha.query.filter_by(idEvento=id_evento).all()
+        return [_evento_da_linha(linha) for linha in _executar("CALL sp_eventos_ativos()", {})]
 
     def listar_por_trilha(self, id_trilha):
-        return (
-            Evento.query.join(EventoTrilha, EventoTrilha.idEvento == Evento.idEvento)
-            .filter(EventoTrilha.idTrilha == id_trilha)
-            .all()
+        linhas = _executar(
+            "CALL sp_eventos_por_trilha(:id_trilha)", {"id_trilha": id_trilha}
         )
-
-    def listar_por_usuario(self, id_usuario):
-        """Expedições das quais o usuário é participante."""
-        return (
-            Evento.query.join(
-                ParticipanteEvento,
-                ParticipanteEvento.idEvento == Evento.idEvento,
-            )
-            .filter(ParticipanteEvento.idUsuario == id_usuario)
-            .order_by(Evento.data.desc(), Evento.horarioSaida.desc())
-            .all()
-        )
-
-    def listar_participantes(self, id_evento):
-        return ParticipanteEvento.query.filter_by(idEvento=id_evento).all()
-
-    def listar_comentarios(self, id_evento):
-        return (db.session.query(ComentarioEvento, Usuario.nome)
-                .join(Usuario, Usuario.idUsuario == ComentarioEvento.idUsuario)
-                .filter(ComentarioEvento.idEvento == id_evento)
-                .order_by(ComentarioEvento.dataEnvio.asc()).all())
+        return [_evento_da_linha(linha) for linha in linhas]
 
     def contar_participantes(self, id_evento):
-        return ParticipanteEvento.query.filter_by(idEvento=id_evento).count()
+        linhas = _executar(
+            "CALL sp_contar_participantes_evento(:id_evento)", {"id_evento": id_evento}
+        )
+        return int(linhas[0]["quantidade"]) if linhas else 0
 
     def detalhes_em_lote(self, ids_evento):
         if not ids_evento:
             return {}
-        vinculos = db.session.query(EventoTrilha).filter(EventoTrilha.idEvento.in_(ids_evento)).all()
-        participantes = (db.session.query(ParticipanteEvento.idEvento, Usuario.nome)
-            .join(Usuario, Usuario.idUsuario == ParticipanteEvento.idUsuario)
-            .filter(ParticipanteEvento.idEvento.in_(ids_evento)).all())
-        comentarios = (db.session.query(ComentarioEvento, Usuario.nome)
-            .join(Usuario, Usuario.idUsuario == ComentarioEvento.idUsuario)
-            .filter(ComentarioEvento.idEvento.in_(ids_evento))
-            .order_by(ComentarioEvento.dataEnvio.asc()).all())
-        criadores = (db.session.query(Evento.idEvento, Usuario.nome)
-            .join(Usuario, Usuario.idUsuario == Evento.idCriador)
-            .filter(Evento.idEvento.in_(ids_evento)).all())
-        dados = {id_evento: {"trilhasIds": [], "participantes": [], "participantesAtuais": 0,
-            "comentarios": [], "nomeCriador": None} for id_evento in ids_evento}
-        for vinculo in vinculos:
-            dados[vinculo.idEvento]["trilhasIds"].append(vinculo.idTrilha)
-        for id_evento, nome in participantes:
-            dados[id_evento]["participantes"].append(nome)
-            dados[id_evento]["participantesAtuais"] += 1
-        for comentario, nome in comentarios:
-            dados[comentario.idEvento]["comentarios"].append({
-                "idComentario": comentario.idComentario, "texto": comentario.texto,
-                "dataEnvio": comentario.dataEnvio.isoformat() if comentario.dataEnvio else None,
-                "nomeUsuario": nome,
-            })
-        for id_evento, nome in criadores:
-            dados[id_evento]["nomeCriador"] = nome
-        return dados
+        linhas = _executar(
+            "CALL sp_detalhes_eventos(:ids_evento)",
+            {"ids_evento": json.dumps(ids_evento)},
+        )
+        return {
+            linha["idEvento"]: {
+                "trilhasIds": _json_da_linha(linha["trilhasIds"]) or [],
+                "participantes": _json_da_linha(linha["participantes"]) or [],
+                "participantesAtuais": linha["participantesAtuais"] or 0,
+                "comentarios": _json_da_linha(linha["comentarios"]) or [],
+                "nomeCriador": linha["nomeCriador"],
+            }
+            for linha in linhas
+        }

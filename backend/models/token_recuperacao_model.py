@@ -11,6 +11,10 @@ class TokenRecuperacao(CrudMixin, db.Model):
     expiraEm = db.Column(db.DateTime, nullable=False)
     usadoEm = db.Column(db.DateTime, nullable=True)
 
+    @classmethod
+    def buscar_por_hash(cls, token_hash):
+        return cls.query.filter_by(tokenHash=token_hash).first()
+
     def to_dict(self):
         return {
             "idToken": self.idToken,

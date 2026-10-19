@@ -1,18 +1,23 @@
-﻿# Fluxograma — buscar trilhas
-
-> Estado atual: busca textual e filtro simples usam `TrilhaRepository` com ORM. Ordenação/filtros agregados também possuem procedure no MySQL através de `RelatorioRepository`, mas a interface não encaminha essas opções por esse caminho em todos os casos. Quando a tela envia coordenadas, a proximidade usa `sp_trilhas_proximas` via `TrilhaRepository`.
+# Fluxograma — buscar e filtrar trilhas
 
 ```mermaid
 flowchart LR
-  A[Tela inicial] --> B[fetch GET /api/trails]
-  B --> C[Rota em api_controller.py]
-  C --> D[TrilhaService.buscar]
-  D --> E[BuscarTrilhasService]
-  E --> F[TrilhaRepository.buscar]
-  F --> G[SQLAlchemy / MySQL]
-  G --> H[Models serializadas]
-  H --> I[JSON]
-  I --> A
+  A[Tela Home] -->|fetch GET /api/trails| B[trilha_bp: /trails]
+  B --> C[TrilhaController.buscar]
+  C --> D[BuscarTrilhasService.executar]
+  D --> E[TrilhaRepository.buscar]
+  E -->|CALL sp_buscar_trilhas| F[(MySQL)]
+  D -->|com filtros| G[FiltrarTrilhasService]
+  G --> H[TrilhaRepository.listar_ordenadas]
+  H -->|CALL sp_filtrar_trilhas| F
+  D -->|com coordenadas| I[ListarTrilhasProximasService]
+  I --> J[TrilhaRepository.trilhas_proximas]
+  J -->|CALL sp_trilhas_proximas| F
+  D --> K[TrilhaRepository.medias_avaliacao]
+  K -->|CALL sp_medias_trilhas| F
+  F --> L[Models e dados agregados]
+  L --> M[Controller devolve JSON]
+  M --> A
 ```
 
-A busca não passa hoje por uma classe Controller e não chama `sp_filtrar_trilhas`; proximidade usa a procedure de intenção `sp_trilhas_proximas`.
+A proximidade é calculada a partir das coordenadas enviadas pelo navegador; não usa a localização atual sem consentimento do navegador.

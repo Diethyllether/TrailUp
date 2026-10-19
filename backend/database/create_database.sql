@@ -129,15 +129,6 @@ CREATE TABLE IF NOT EXISTS checkpoint (
     INDEX idx_checkpoint_trilha (idTrilha, idCheckpoint)
 ) ENGINE=InnoDB;
 
-CREATE TABLE IF NOT EXISTS foto (
-    idFoto INT AUTO_INCREMENT PRIMARY KEY,
-    url VARCHAR(255) NOT NULL,
-    legenda VARCHAR(255) NULL,
-    idTrilha INT NOT NULL,
-    CONSTRAINT fk_foto_trilha FOREIGN KEY (idTrilha) REFERENCES trilha(idTrilha) ON UPDATE CASCADE ON DELETE CASCADE,
-    INDEX idx_foto_trilha (idTrilha)
-) ENGINE=InnoDB;
-
 CREATE TABLE IF NOT EXISTS evento_trilha (
     idEvento INT NOT NULL, idTrilha INT NOT NULL,
     PRIMARY KEY (idEvento, idTrilha),
@@ -165,15 +156,6 @@ CREATE TABLE IF NOT EXISTS comentario_evento (
     INDEX idx_comentario_evento (idEvento, dataEnvio)
 ) ENGINE=InnoDB;
 
-CREATE TABLE IF NOT EXISTS notificacao (
-    idNotificacao INT AUTO_INCREMENT PRIMARY KEY,
-    mensagem TEXT NOT NULL, dataEnvio DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    lida BOOLEAN NOT NULL DEFAULT FALSE, idUsuario INT NOT NULL, idEvento INT NULL,
-    CONSTRAINT fk_notificacao_usuario FOREIGN KEY (idUsuario) REFERENCES usuario(idUsuario) ON UPDATE CASCADE ON DELETE CASCADE,
-    CONSTRAINT fk_notificacao_evento FOREIGN KEY (idEvento) REFERENCES evento(idEvento) ON UPDATE CASCADE ON DELETE SET NULL,
-    INDEX idx_notificacao_usuario_lida (idUsuario, lida), INDEX idx_notificacao_evento (idEvento)
-) ENGINE=InnoDB;
-
 CREATE TABLE IF NOT EXISTS denuncia (
     idDenuncia INT AUTO_INCREMENT PRIMARY KEY, descricao TEXT NOT NULL,
     dataEnvio DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -199,13 +181,4 @@ CREATE TABLE IF NOT EXISTS historicoTrilha (
     CONSTRAINT fk_historico_trilha FOREIGN KEY (idTrilha) REFERENCES trilha(idTrilha) ON UPDATE CASCADE ON DELETE RESTRICT,
     INDEX idx_historico_usuario (idUsuario), INDEX idx_historico_trilha (idTrilha),
     INDEX idx_historico_evento (idEvento), INDEX idx_historico_data (dataRealizacao)
-) ENGINE=InnoDB;
-
-CREATE TABLE IF NOT EXISTS registroRealizado (
-    idRegistro INT AUTO_INCREMENT PRIMARY KEY, latitude FLOAT NOT NULL, longitude FLOAT NOT NULL,
-    horario DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, observacao TEXT NULL, idHistorico INT NOT NULL,
-    CONSTRAINT chk_registro_latitude CHECK (latitude BETWEEN -90 AND 90),
-    CONSTRAINT chk_registro_longitude CHECK (longitude BETWEEN -180 AND 180),
-    CONSTRAINT fk_registro_historico FOREIGN KEY (idHistorico) REFERENCES historicoTrilha(idHistorico) ON UPDATE CASCADE ON DELETE CASCADE,
-    INDEX idx_registro_historico (idHistorico, idRegistro)
 ) ENGINE=InnoDB;

@@ -16,6 +16,12 @@ class ChecklistItem(CrudMixin, db.Model):
         nullable=False,
     )
 
+    @classmethod
+    def listar_por_trilha(cls, id_trilha):
+        return cls.query.filter_by(idTrilha=id_trilha).order_by(
+            cls.obrigatorio.desc(), cls.idChecklistItem.asc()
+        ).all()
+
     def to_dict(self):
         return {
             "idChecklistItem": self.idChecklistItem,

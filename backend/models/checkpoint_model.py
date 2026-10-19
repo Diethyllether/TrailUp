@@ -10,6 +10,10 @@ class Checkpoint(CrudMixin, db.Model):
     horario = db.Column(db.DateTime, nullable=True)
     idTrilha = db.Column(db.Integer, db.ForeignKey("trilha.idTrilha"), nullable=False)
 
+    @classmethod
+    def listar_por_trilha(cls, id_trilha):
+        return cls.query.filter_by(idTrilha=id_trilha).all()
+
     def to_dict(self):
         return {
             "idCheckpoint": self.idCheckpoint,

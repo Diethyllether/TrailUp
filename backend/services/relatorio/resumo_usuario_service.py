@@ -1,4 +1,5 @@
 from repositories.relatorio_repository import RelatorioRepository
+from utils.excecoes import RecursoNaoEncontrado
 
 
 class ResumoUsuarioService:
@@ -8,5 +9,5 @@ class ResumoUsuarioService:
     def executar(self, id_usuario):
         resumo = self.repository.resumo_usuario(id_usuario)
         if not resumo:
-            raise ValueError("usuário não encontrado")
+            raise RecursoNaoEncontrado("usuário não encontrado")
         return resumo

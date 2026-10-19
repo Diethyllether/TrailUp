@@ -12,6 +12,10 @@ class HistoricoTrilha(CrudMixin, db.Model):
     idEvento = db.Column(db.Integer, db.ForeignKey("evento.idEvento"), nullable=True)
     idTrilha = db.Column(db.Integer, db.ForeignKey("trilha.idTrilha"), nullable=False)
 
+    @classmethod
+    def listar_por_usuario(cls, id_usuario):
+        return cls.query.filter_by(idUsuario=id_usuario).all()
+
     def to_dict(self):
         return {
             "idHistorico": self.idHistorico,
