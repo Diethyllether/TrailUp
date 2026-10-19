@@ -119,12 +119,12 @@ def trail_detail(trail_id):
     try:
         trail = trails.buscar_por_id(trail_id)
         reviews = []
-        for review in ratings.listar_por_trilha(trail_id):
-            author = users.buscar_por_id(review.idUsuario)
-            reviews.append({**review.to_dict(), "nomeUsuario": author.nome if author else "Usuário"})
+        for review, nome_autor in trails.avaliacoes_com_autores(trail_id):
+            reviews.append({**review.to_dict(), "nomeUsuario": nome_autor})
         user_id = session.get("id_usuario")
         favorite = user_id and any(x.idTrilha == trail_id for x in favorites.listar_por_usuario(user_id))
-        return jsonify(trail=trail.to_dict(), checkpoints=[x.to_dict() for x in checkpoints.listar_por_trilha(trail_id)], events=[events.to_dict_completo(x) for x in events.listar_por_trilha(trail_id)], reviews=reviews, checklist=[x.to_dict() for x in checklists.listar_por_trilha(trail_id)], favorite=bool(favorite), average=ratings.media_por_trilha(trail_id))
+        eventos_trilha = events.listar_por_trilha(trail_id)
+        return jsonify(trail=trail.to_dict(), checkpoints=[x.to_dict() for x in checkpoints.listar_por_trilha(trail_id)], events=events.serializar_muitos(eventos_trilha), reviews=reviews, checklist=[x.to_dict() for x in checklists.listar_por_trilha(trail_id)], favorite=bool(favorite), average=ratings.media_por_trilha(trail_id))
     except ValueError as error:
         return fail(error, 404)
 
@@ -152,7 +152,8 @@ def list_favorites():
 
 @api_bp.get("/events")
 def list_events():
-    items = [events.to_dict_completo(x) for x in events.listar_todos()]
+    evento_models = events.listar_todos()
+    items = events.serializar_muitos(evento_models)
     participating = {x.idEvento for x in events.listar_por_usuario(session["id_usuario"])} if session.get("id_usuario") else set()
     return jsonify(items=items, participating=list(participating), trails=[x.to_dict() for x in trails.listar_todos()])
 

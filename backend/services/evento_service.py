@@ -43,6 +43,15 @@ class EventoService:
         dados["nomeCriador"] = criador.nome if criador else None
         return dados
 
+    def serializar_muitos(self, eventos):
+        detalhes = self.repository.detalhes_em_lote([evento.idEvento for evento in eventos])
+        resultado = []
+        for evento in eventos:
+            dados = evento.to_dict()
+            dados.update(detalhes[evento.idEvento])
+            resultado.append(dados)
+        return resultado
+
     def buscar_por_id(self, id_evento):
         evento = Evento.buscar_por_id(id_evento)
         if not evento:

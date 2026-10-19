@@ -46,6 +46,9 @@ class TrilhaService:
     def medias_avaliacao(self):
         return self.repository.medias_avaliacao()
 
+    def avaliacoes_com_autores(self, id_trilha):
+        return self.repository.avaliacoes_com_autores(id_trilha)
+
     def proximas(self, latitude, longitude, limite=6):
         trilhas = {t.idTrilha: t for t in self.listar_todos()}
         proximidade = self.repository.trilhas_proximas(latitude, longitude, limite)

@@ -51,6 +51,18 @@ class TrilhaRepository:
         # O frontend usa [media, quantidade] para mostrar a nota média no card.
         return {row[0]: (row[1], row[2]) for row in rows}
 
+    def avaliacoes_com_autores(self, id_trilha):
+        from models.avaliacao_model import Avaliacao
+        from models.usuario_model import Usuario
+
+        return (
+            db.session.query(Avaliacao, Usuario.nome)
+            .join(Usuario, Usuario.idUsuario == Avaliacao.idUsuario)
+            .filter(Avaliacao.idTrilha == id_trilha)
+            .order_by(Avaliacao.data.desc(), Avaliacao.idAvaliacao.desc())
+            .all()
+        )
+
     def pontos_proximos(self):
         return Checkpoint.query.filter(
             Checkpoint.latitude.between(-90, 90), Checkpoint.longitude.between(-180, 180),
