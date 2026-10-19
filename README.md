@@ -200,7 +200,7 @@ frontend/
 20. O sistema salva as marcações do checklist por usuário no banco de dados.
 ## Arquitetura e evidências
 
-O frontend estático pode ser executado separadamente na porta 8000 e consome a API Flask na porta 5000 por `fetch`. O backend usa Services, Models SQLAlchemy com CRUD Active Record e repositories para consultas especializadas. O caminho atual ainda não está integralmente alinhado à rubrica: as rotas estão concentradas em `backend/api_controller.py` e persistem Services Facade.
+O frontend estático pode ser executado separadamente na porta 8000 e consome a API Flask na porta 5000 por `fetch`. O backend usa Services, Models SQLAlchemy com CRUD Active Record e repositories para consultas especializadas. A migração para a rubrica segue parcial: a maioria das rotas permanece em `backend/api_controller.py` e ainda há Services Facade. Ranking e resumo já usam `RelatorioController`, Blueprint próprio e Services por caso de uso.
 
 - [Diagrama das Models existentes](docs/diagrama_de_classes.md)
 - [Fluxogramas](docs/fluxogramas/)

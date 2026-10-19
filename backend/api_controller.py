@@ -16,7 +16,6 @@ from services.trilha_service import TrilhaService
 from services.usuario_service import UsuarioService
 from services.usuario.solicitar_recuperacao_senha_service import SolicitarRecuperacaoSenhaService
 from services.usuario.redefinir_senha_service import RedefinirSenhaService
-from services.relatorio_service import RelatorioService
 from services.checklist.consultar_checklist_service import ConsultarChecklistService
 from services.checklist.marcar_item_checklist_service import MarcarItemChecklistService
 
@@ -25,7 +24,6 @@ users, trails, events = UsuarioService(), TrilhaService(), EventoService()
 favorites, ratings = FavoritoService(), AvaliacaoService()
 checkpoints, checklists, history = CheckpointService(), ChecklistService(), HistoricoService()
 denuncias = DenunciaService()
-relatorios = RelatorioService()
 
 
 def fail(message, status=400):
@@ -309,18 +307,6 @@ def create_report():
         return jsonify(report=report.to_dict()), 201
     except ValueError as error:
         return fail(error)
-
-
-@api_bp.get("/reports/ranking")
-def ranking_usuarios():
-    return jsonify(items=relatorios.ranking_usuarios(request.args.get("limite", 10)))
-
-
-@api_bp.get("/reports/summary")
-@authenticated
-def resumo_usuario():
-    resumo = relatorios.resumo_usuario(session["id_usuario"])
-    return jsonify(item=resumo)
 
 
 @api_bp.get("/trails/<int:trail_id>/checklist-state")

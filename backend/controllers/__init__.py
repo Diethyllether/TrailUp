@@ -1,7 +1,5 @@
-"""Pacote reservado para controllers HTTP por recurso.
+"""Controllers HTTP por recurso."""
 
-Atualmente, os endpoints ainda são definidos em ``api_controller.py``; este
-pacote não exporta classes que não existem.
-"""
+from .relatorio_controller import RelatorioController
 
-__all__ = []
+__all__ = ["RelatorioController"]

@@ -7,6 +7,7 @@ from config import Config
 from extensions import db
 import models
 from api_controller import api_bp
+from routes.relatorio_routes import relatorio_bp
 from utils.excecoes import ErroDeDominio
 
 
@@ -18,6 +19,7 @@ def create_app():
     app.url_map.strict_slashes = False
     db.init_app(app)
     app.register_blueprint(api_bp, url_prefix="/api")
+    app.register_blueprint(relatorio_bp, url_prefix="/api")
 
     @app.get("/termo-consentimento")
     def consent_term():
