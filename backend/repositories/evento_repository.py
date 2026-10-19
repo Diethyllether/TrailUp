@@ -4,10 +4,9 @@ from models.evento_trilha_model import EventoTrilha
 from models.participante_evento_model import ParticipanteEvento
 from models.comentario_evento_model import ComentarioEvento
 from models.usuario_model import Usuario
-from repositories.base_repository import BaseRepository
 
 
-class EventoRepository(BaseRepository):
+class EventoRepository:
     """Acesso especializado a vínculos, participantes e consultas de eventos."""
 
     model = Evento
@@ -16,12 +15,6 @@ class EventoRepository(BaseRepository):
         return Evento.query.filter(
             Evento.latitude.isnot(None), Evento.longitude.isnot(None)
         ).all()
-
-    def vincular_trilha(self, id_evento, id_trilha):
-        vinculo = EventoTrilha(idEvento=id_evento, idTrilha=id_trilha)
-        db.session.add(vinculo)
-        db.session.commit()
-        return vinculo
 
     def listar_trilhas_do_evento(self, id_evento):
         return EventoTrilha.query.filter_by(idEvento=id_evento).all()
@@ -45,24 +38,6 @@ class EventoRepository(BaseRepository):
             .all()
         )
 
-    def buscar_participante(self, id_usuario, id_evento):
-        return ParticipanteEvento.query.filter_by(
-            idUsuario=id_usuario, idEvento=id_evento
-        ).first()
-
-    def adicionar_participante(self, id_usuario, id_evento):
-        participante = ParticipanteEvento(idUsuario=id_usuario, idEvento=id_evento)
-        db.session.add(participante)
-        db.session.commit()
-        return participante
-
-    def remover_participante(self, id_usuario, id_evento):
-        participante = self.buscar_participante(id_usuario, id_evento)
-        if participante:
-            db.session.delete(participante)
-            db.session.commit()
-        return participante
-
     def listar_participantes(self, id_evento):
         return ParticipanteEvento.query.filter_by(idEvento=id_evento).all()
 
@@ -71,11 +46,6 @@ class EventoRepository(BaseRepository):
                 .join(Usuario, Usuario.idUsuario == ComentarioEvento.idUsuario)
                 .filter(ComentarioEvento.idEvento == id_evento)
                 .order_by(ComentarioEvento.dataEnvio.asc()).all())
-
-    def criar_comentario(self, comentario):
-        db.session.add(comentario)
-        db.session.commit()
-        return comentario
 
     def contar_participantes(self, id_evento):
         return ParticipanteEvento.query.filter_by(idEvento=id_evento).count()

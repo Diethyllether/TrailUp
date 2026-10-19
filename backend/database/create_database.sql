@@ -209,10 +209,3 @@ CREATE TABLE IF NOT EXISTS registroRealizado (
     CONSTRAINT fk_registro_historico FOREIGN KEY (idHistorico) REFERENCES historicoTrilha(idHistorico) ON UPDATE CASCADE ON DELETE CASCADE,
     INDEX idx_registro_historico (idHistorico, idRegistro)
 ) ENGINE=InnoDB;
-
-CREATE TABLE IF NOT EXISTS fotoRegistro (
-    idFotoRegistro INT AUTO_INCREMENT PRIMARY KEY, url VARCHAR(255) NOT NULL,
-    legenda VARCHAR(255) NULL, idRegistro INT NOT NULL,
-    CONSTRAINT fk_foto_registro FOREIGN KEY (idRegistro) REFERENCES registroRealizado(idRegistro) ON UPDATE CASCADE ON DELETE CASCADE,
-    INDEX idx_foto_registro_registro (idRegistro)
-) ENGINE=InnoDB;

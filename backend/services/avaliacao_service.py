@@ -1,25 +1,24 @@
 import datetime
 
 from models.avaliacao_model import Avaliacao
-from repositories.avaliacao_repository import AvaliacaoRepository
 
 
 class AvaliacaoService:
     def __init__(self, repository=None):
-        self.repository = repository or AvaliacaoRepository()
+        self.repository = repository
 
     def listar_por_trilha(self, id_trilha):
-        return self.repository.listar_por_trilha(id_trilha)
+        return Avaliacao.query.filter_by(idTrilha=id_trilha).all()
 
     def listar_por_usuario(self, id_usuario):
-        return self.repository.listar_por_usuario(id_usuario)
+        return Avaliacao.query.filter_by(idUsuario=id_usuario).all()
 
     def media_por_trilha(self, id_trilha):
         avaliacoes = self.listar_por_trilha(id_trilha)
         return round(sum(a.nota for a in avaliacoes) / len(avaliacoes), 1) if avaliacoes else None
 
     def buscar_por_id(self, id_avaliacao):
-        avaliacao = self.repository.buscar_por_id(id_avaliacao)
+        avaliacao = Avaliacao.buscar_por_id(id_avaliacao)
         if not avaliacao:
             raise ValueError("avaliação não encontrada")
         return avaliacao
@@ -41,8 +40,7 @@ class AvaliacaoService:
         avaliacao = Avaliacao(nota=nota, comentario=dados.get("comentario"),
                               data=datetime.date.today(), idUsuario=id_usuario,
                               idTrilha=dados["idTrilha"])
-        self.repository.criar(avaliacao)
-        return avaliacao
+        return avaliacao.salvar()
 
     def atualizar(self, id_avaliacao, id_usuario, dados):
         avaliacao = self.buscar_por_id(id_avaliacao)
@@ -52,11 +50,10 @@ class AvaliacaoService:
             avaliacao.nota = self._nota_valida(dados["nota"])
         if "comentario" in dados:
             avaliacao.comentario = dados["comentario"]
-        self.repository.atualizar()
-        return avaliacao
+        return avaliacao.atualizar()
 
     def deletar(self, id_avaliacao, id_usuario):
         avaliacao = self.buscar_por_id(id_avaliacao)
         if avaliacao.idUsuario != id_usuario:
             raise PermissionError("você só pode remover suas próprias avaliações")
-        self.repository.deletar(avaliacao)
+        avaliacao.deletar()

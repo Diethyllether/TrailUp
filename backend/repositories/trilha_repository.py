@@ -2,9 +2,8 @@ from sqlalchemy import or_
 from sqlalchemy import func
 
 from models.trilha_model import Trilha
-from repositories.base_repository import BaseRepository
 
-class TrilhaRepository(BaseRepository):
+class TrilhaRepository:
     """Consultas com filtros combinados. CRUD simples permanece na Model."""
 
     model = Trilha

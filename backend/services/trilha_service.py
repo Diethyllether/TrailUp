@@ -39,7 +39,7 @@ class TrilhaService:
         return round(horas * 60, 1)
 
     def listar_todos(self):
-        return self.repository.listar_todos()
+        return Trilha.listar_todos()
 
     def listar_ordenadas(self, ordenacao=None, distancia_max=None, duracao_max=None, nota_min=None):
         return self.repository.listar_ordenadas(ordenacao, distancia_max, duracao_max, nota_min)
@@ -91,7 +91,7 @@ class TrilhaService:
             imagemUrl=dados.get("imagemUrl"),
             tempoEstimadoMin=tempo_estimado,
         )
-        return self.repository.criar(trilha)
+        return trilha.salvar()
 
     def atualizar(self, id_trilha, dados):
         trilha = self.buscar_por_id(id_trilha)
@@ -106,9 +106,8 @@ class TrilhaService:
         trilha.tempoEstimadoMin = self.calcular_tempo_estimado_min(
             trilha.distancia, trilha.dificuldade
         )
-        self.repository.atualizar()
-        return trilha
+        return trilha.atualizar()
 
     def deletar(self, id_trilha):
         trilha = self.buscar_por_id(id_trilha)
-        self.repository.deletar(trilha)
+        trilha.deletar()

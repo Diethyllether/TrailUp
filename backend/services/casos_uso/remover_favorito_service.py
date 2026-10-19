@@ -1,11 +1,11 @@
-from repositories.favorito_repository import FavoritoRepository
+from models.favorito_model import Favorito
 
 class RemoverFavoritoService:
     def __init__(self, repository=None):
-        self.repository = repository or FavoritoRepository()
+        self.repository = repository
 
     def executar(self, id_usuario, id_trilha):
-        favorito = self.repository.buscar(id_usuario, id_trilha)
+        favorito = Favorito.query.filter_by(idUsuario=id_usuario, idTrilha=id_trilha).first()
         if not favorito:
             raise ValueError("trilha não está nos favoritos deste usuário")
-        self.repository.deletar(favorito)
+        favorito.deletar()

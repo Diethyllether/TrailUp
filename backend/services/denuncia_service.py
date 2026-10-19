@@ -1,15 +1,14 @@
 import datetime
 
 from models.denuncia_model import Denuncia
-from repositories.denuncia_repository import DenunciaRepository
 
 
 class DenunciaService:
     def __init__(self, repository=None):
-        self.repository = repository or DenunciaRepository()
+        self.repository = repository
 
     def listar_por_evento(self, id_evento):
-        return self.repository.listar_por_evento(id_evento)
+        return Denuncia.query.filter_by(idEvento=id_evento).all()
 
     def criar(self, id_usuario_denunciante, dados):
         descricao = (dados.get("descricao") or "").strip()
@@ -30,15 +29,13 @@ class DenunciaService:
             idUsuarioDenunciante=id_usuario_denunciante,
             idUsuarioDenunciado=dados.get("idUsuarioDenunciado"),
         )
-        self.repository.criar(denuncia)
-        return denuncia
+        return denuncia.salvar()
 
     def atualizar_status(self, id_denuncia, status):
-        denuncia = self.repository.buscar_por_id(id_denuncia)
+        denuncia = Denuncia.buscar_por_id(id_denuncia)
         if not denuncia:
             raise ValueError("denúncia não encontrada")
         if status not in ("PENDENTE", "EM_ANALISE", "RESOLVIDA", "ARQUIVADA"):
             raise ValueError("status inválido")
         denuncia.status = status
-        self.repository.atualizar()
-        return denuncia
+        return denuncia.atualizar()

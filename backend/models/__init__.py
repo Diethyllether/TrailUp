@@ -9,7 +9,6 @@ from .evento_model import Evento
 from .evento_trilha_model import EventoTrilha
 from .favorito_model import Favorito
 from .foto_model import Foto
-from .foto_registro_model import FotoRegistro
 from .historico_model import HistoricoTrilha
 from .notificacao_model import Notificacao
 from .participante_evento_model import ParticipanteEvento
@@ -28,7 +27,6 @@ __all__ = [
     "EventoTrilha",
     "Favorito",
     "Foto",
-    "FotoRegistro",
     "HistoricoTrilha",
     "Notificacao",
     "ParticipanteEvento",
