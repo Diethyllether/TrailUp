@@ -1,25 +1,13 @@
-import unicodedata
-
 from models.trilha_model import Trilha
 from repositories.trilha_repository import TrilhaRepository
 from services.casos_uso import BuscarTrilhasService, DetalharTrilhaService
+from utils.normalizacao import normalizar_dificuldade
 
 VELOCIDADE_POR_DIFICULDADE = {
     "FACIL": 4.0,
     "MODERADA": 3.0,
     "DIFICIL": 2.0,
 }
-
-def _normalizar_dificuldade(valor):
-    if not valor:
-        return valor
-    sem_acento = unicodedata.normalize("NFKD", valor).encode("ascii", "ignore").decode()
-    codigo = sem_acento.strip().upper()
-    if codigo in ("MODERADO", "MODERADA"):
-        return "MODERADA"
-    if codigo in VELOCIDADE_POR_DIFICULDADE:
-        return codigo
-    return valor
 
 class TrilhaService:
     """Facade de trilha; busca e detalhe possuem Services de caso de uso."""
@@ -82,7 +70,7 @@ class TrilhaService:
             localizacao=dados.get("localizacao"),
             distancia=dados.get("distancia"),
             duracao=dados.get("duracao"),
-            dificuldade=_normalizar_dificuldade(dados.get("dificuldade")),
+            dificuldade=normalizar_dificuldade(dados.get("dificuldade")),
             descricao=dados.get("descricao"),
             imagemUrl=dados.get("imagemUrl"),
             tempoEstimadoMin=tempo_estimado,
@@ -96,7 +84,7 @@ class TrilhaService:
             if campo in dados:
                 valor = dados[campo]
                 if campo == "dificuldade":
-                    valor = _normalizar_dificuldade(valor)
+                    valor = normalizar_dificuldade(valor)
                 setattr(trilha, campo, valor)
 
         trilha.tempoEstimadoMin = self.calcular_tempo_estimado_min(

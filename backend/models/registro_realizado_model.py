@@ -12,6 +12,10 @@ class RegistroRealizado(CrudMixin, db.Model):
     observacao = db.Column(db.Text, nullable=True)
     idHistorico = db.Column(db.Integer, db.ForeignKey("historicoTrilha.idHistorico"), nullable=False)
 
+    @classmethod
+    def listar_por_historico(cls, id_historico):
+        return cls.query.filter_by(idHistorico=id_historico).all()
+
     def to_dict(self):
         return {
             "idRegistro": self.idRegistro,

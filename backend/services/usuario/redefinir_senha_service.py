@@ -18,7 +18,7 @@ class RedefinirSenhaService:
             raise ValueError("a nova senha deve ter pelo menos 6 caracteres")
 
         token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
-        registro = self.modelo_token.query.filter_by(tokenHash=token_hash).first()
+        registro = self.modelo_token.buscar_por_hash(token_hash)
         agora = datetime.now(timezone.utc).replace(tzinfo=None)
         if registro is None or registro.usadoEm is not None or registro.expiraEm <= agora:
             raise ValueError("token inválido ou expirado")

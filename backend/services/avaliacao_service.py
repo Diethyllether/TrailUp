@@ -8,10 +8,10 @@ class AvaliacaoService:
         self.repository = repository
 
     def listar_por_trilha(self, id_trilha):
-        return Avaliacao.query.filter_by(idTrilha=id_trilha).all()
+        return Avaliacao.listar_por_trilha(id_trilha)
 
     def listar_por_usuario(self, id_usuario):
-        return Avaliacao.query.filter_by(idUsuario=id_usuario).all()
+        return Avaliacao.listar_por_usuario(id_usuario)
 
     def media_por_trilha(self, id_trilha):
         avaliacoes = self.listar_por_trilha(id_trilha)

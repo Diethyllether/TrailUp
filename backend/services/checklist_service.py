@@ -8,6 +8,4 @@ class ChecklistService:
         pass
 
     def listar_por_trilha(self, id_trilha):
-        return ChecklistItem.query.filter_by(idTrilha=id_trilha).order_by(
-            ChecklistItem.obrigatorio.desc(), ChecklistItem.idChecklistItem.asc()
-        ).all()
+        return ChecklistItem.listar_por_trilha(id_trilha)

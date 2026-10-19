@@ -1,18 +1,6 @@
-import unicodedata
-
-from repositories.trilha_repository import TrilhaRepository
 from models.trilha_model import Trilha
-
-def _normalizar_dificuldade(valor):
-    if not valor:
-        return valor
-    sem_acento = unicodedata.normalize("NFKD", valor).encode("ascii", "ignore").decode()
-    codigo = sem_acento.strip().upper()
-    if codigo in ("MODERADO", "MODERADA"):
-        return "MODERADA"
-    if codigo in ("FACIL", "DIFICIL"):
-        return codigo
-    return valor
+from repositories.trilha_repository import TrilhaRepository
+from utils.normalizacao import normalizar_dificuldade
 
 class BuscarTrilhasService:
     def __init__(self, repository=None):
@@ -23,7 +11,7 @@ class BuscarTrilhasService:
             return self.repository.buscar(
                 nome=nome,
                 localizacao=localizacao,
-                dificuldade=_normalizar_dificuldade(dificuldade),
+                dificuldade=normalizar_dificuldade(dificuldade),
                 busca=busca,
             )
         return Trilha.listar_todos()

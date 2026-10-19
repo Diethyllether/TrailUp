@@ -8,7 +8,7 @@ class DenunciaService:
         self.repository = repository
 
     def listar_por_evento(self, id_evento):
-        return Denuncia.query.filter_by(idEvento=id_evento).all()
+        return Denuncia.listar_por_evento(id_evento)
 
     def criar(self, id_usuario_denunciante, dados):
         descricao = (dados.get("descricao") or "").strip()

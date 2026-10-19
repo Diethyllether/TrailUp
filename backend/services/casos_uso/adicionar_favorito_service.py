@@ -7,7 +7,7 @@ class AdicionarFavoritoService:
         self.repository = repository
 
     def executar(self, id_usuario, id_trilha):
-        existente = Favorito.query.filter_by(idUsuario=id_usuario, idTrilha=id_trilha).first()
+        existente = Favorito.buscar(id_usuario, id_trilha)
         if existente:
             return existente
 

@@ -14,6 +14,10 @@ class Denuncia(CrudMixin, db.Model):
     idUsuarioDenunciante = db.Column(db.Integer, db.ForeignKey("usuario.idUsuario"), nullable=False)
     idUsuarioDenunciado = db.Column(db.Integer, db.ForeignKey("usuario.idUsuario"), nullable=True)
 
+    @classmethod
+    def listar_por_evento(cls, id_evento):
+        return cls.query.filter_by(idEvento=id_evento).all()
+
     def to_dict(self):
         return {
             "idDenuncia": self.idDenuncia,

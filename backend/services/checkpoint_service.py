@@ -7,7 +7,7 @@ class CheckpointService:
         pass
 
     def listar_por_trilha(self, id_trilha):
-        return Checkpoint.query.filter_by(idTrilha=id_trilha).all()
+        return Checkpoint.listar_por_trilha(id_trilha)
 
     def buscar_por_id(self, id_checkpoint):
         checkpoint = Checkpoint.buscar_por_id(id_checkpoint)

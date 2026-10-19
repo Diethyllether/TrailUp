@@ -5,7 +5,7 @@ class RemoverFavoritoService:
         self.repository = repository
 
     def executar(self, id_usuario, id_trilha):
-        favorito = Favorito.query.filter_by(idUsuario=id_usuario, idTrilha=id_trilha).first()
+        favorito = Favorito.buscar(id_usuario, id_trilha)
         if not favorito:
             raise ValueError("trilha não está nos favoritos deste usuário")
         favorito.deletar()

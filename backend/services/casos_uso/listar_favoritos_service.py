@@ -5,4 +5,4 @@ class ListarFavoritosService:
         self.repository = repository
 
     def executar(self, id_usuario):
-        return Favorito.query.filter_by(idUsuario=id_usuario).all()
+        return Favorito.listar_por_usuario(id_usuario)

@@ -1,6 +1,4 @@
 from datetime import date, datetime
-from functools import wraps
-
 from flask import Blueprint, jsonify, request, session
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -18,6 +16,7 @@ from services.usuario.solicitar_recuperacao_senha_service import SolicitarRecupe
 from services.usuario.redefinir_senha_service import RedefinirSenhaService
 from services.checklist.consultar_checklist_service import ConsultarChecklistService
 from services.checklist.marcar_item_checklist_service import MarcarItemChecklistService
+from utils.decorators import login_obrigatorio as authenticated
 
 api_bp = Blueprint("api", __name__)
 users, trails, events = UsuarioService(), TrilhaService(), EventoService()
@@ -28,15 +27,6 @@ denuncias = DenunciaService()
 
 def fail(message, status=400):
     return jsonify(error=str(message)), status
-
-
-def authenticated(fn):
-    @wraps(fn)
-    def wrapped(*args, **kwargs):
-        if not session.get("id_usuario"):
-            return fail("Autenticação necessária", 401)
-        return fn(*args, **kwargs)
-    return wrapped
 
 
 def current_user():

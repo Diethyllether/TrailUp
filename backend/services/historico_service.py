@@ -8,7 +8,7 @@ class HistoricoService:
         pass
 
     def listar_por_usuario(self, id_usuario):
-        return HistoricoTrilha.query.filter_by(idUsuario=id_usuario).all()
+        return HistoricoTrilha.listar_por_usuario(id_usuario)
 
     def buscar_por_id(self, id_historico):
         historico = HistoricoTrilha.buscar_por_id(id_historico)
@@ -51,4 +51,4 @@ class HistoricoService:
         return registro.salvar()
 
     def listar_registros(self, id_historico):
-        return RegistroRealizado.query.filter_by(idHistorico=id_historico).all()
+        return RegistroRealizado.listar_por_historico(id_historico)
