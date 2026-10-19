@@ -1,23 +1,32 @@
-﻿# Apresentação — TrailUp
+# Apresentação — TrailUp
 
-## 1. Problema e público
-Pessoas que praticam trilhas precisam comparar percursos, se preparar e coordenar saídas. O TrailUp reúne busca de trilhas, informações de percurso, avaliações, favoritos e expedições. O público é a comunidade trilheira.
+## Projeto e público
 
-## 2. Casos de uso para demonstrar
-- Buscar, filtrar e ordenar trilhas na tela inicial.
-- Abrir o detalhe de uma trilha e consultar checkpoints no mapa.
-- Participar de uma expedição e conferir participantes.
+O TrailUp organiza a descoberta e preparação de trilhas e a coordenação de expedições. É voltado a pessoas que fazem trilhas, de forma individual ou em grupo.
+
+## Arquitetura
+
+O frontend estático é servido em `http://localhost:8000` e consome a API Flask em `http://localhost:5000` por `fetch`. A API organiza rotas em Blueprints, Controllers por recurso, Services por caso de uso, Models para operações CRUD e Repositories para consultas em procedures MySQL.
+
+```text
+Tela → fetch → Blueprint → Controller → Service → Model ou Repository → procedure → MySQL
+```
+
+Consulte o [diagrama de classes](diagrama_de_classes.md) e os [fluxogramas](fluxogramas/).
+
+## Funcionalidades para apresentar
+
+- Buscar, filtrar e ordenar trilhas.
+- Encontrar trilhas próximas das coordenadas informadas.
+- Participar de expedição com verificação de vagas.
 - Consultar ranking e resumo pessoal.
 
-As duas últimas telas usam relatórios em procedures; teste com MySQL antes da apresentação. A proximidade usa a procedure `sp_trilhas_proximas` via Repository.
+Ranking, resumo, busca e participação usam procedures MySQL. Faça a demonstração com schema, procedures e seed carregados. O roteiro tem duração máxima de dois minutos em [roteiro_video.md](roteiro_video.md).
 
-## 3. Arquitetura
-O frontend estático roda na porta 8000 e chama a API Flask na porta 5000. A API usa Services, Models Active Record e repositories para consultas especializadas. O código ainda possui um módulo único de rotas e Services Facade; a migração para classes Controller e um Service por caso de uso está incompleta.
+## Tecnologias
 
-Consulte [diagrama de classes](diagrama_de_classes.md) e os [fluxogramas](fluxogramas/).
+Python, Flask, Flask-SQLAlchemy, MySQL, HTML, CSS, JavaScript, MapLibre GL e OpenStreetMap.
 
-## 4. Tecnologias
-Python, Flask, SQLAlchemy, MySQL, HTML, CSS, JavaScript e MapLibre GL.
+## Execução
 
-## 5. Execução
-Siga os passos de configuração de banco, `.env` e inicialização dos dois servidores em [README](../README.md#instalação-e-execução).
+Siga as instruções de banco e dos servidores separados no [README](../README.md#como-executar).

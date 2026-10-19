@@ -52,8 +52,6 @@ def test_procedures_do_seed(conexao_mysql):
     assert chamar(conexao_mysql, "CALL sp_avaliacoes_trilha(:id)", {"id": id_trilha}) == []
     assert chamar(conexao_mysql, "CALL sp_historico_usuario(:id)", {"id": 0}) == []
 
-    pontos = chamar(conexao_mysql, "CALL sp_checkpoints_validos()")
-    assert any(item["idTrilha"] == id_trilha for item in pontos)
     pontos_trilha = chamar(
         conexao_mysql, "CALL sp_checkpoints_trilha(:id)", {"id": id_trilha}
     )
@@ -62,11 +60,7 @@ def test_procedures_do_seed(conexao_mysql):
         conexao_mysql, "CALL sp_primeiro_checkpoint_valido(:id)", {"id": id_trilha}
     )
 
-    assert chamar(conexao_mysql, "CALL sp_trilhas_evento(:id)", {"id": 0}) == []
     assert chamar(conexao_mysql, "CALL sp_eventos_por_trilha(:id)", {"id": id_trilha}) == []
-    assert chamar(conexao_mysql, "CALL sp_eventos_por_usuario(:id)", {"id": 0}) == []
-    assert chamar(conexao_mysql, "CALL sp_participantes_evento(:id)", {"id": 0}) == []
-    assert chamar(conexao_mysql, "CALL sp_comentarios_evento(:id)", {"id": 0}) == []
     assert chamar(
         conexao_mysql, "CALL sp_contar_participantes_evento(:id)", {"id": 0}
     )[0]["quantidade"] == 0

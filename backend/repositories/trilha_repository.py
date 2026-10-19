@@ -66,9 +66,6 @@ class TrilhaRepository:
             for linha in linhas
         ]
 
-    def pontos_proximos(self):
-        return _executar("CALL sp_checkpoints_validos()", {})
-
     def trilhas_proximas(self, latitude, longitude, limite=6):
         return _executar(
             "CALL sp_trilhas_proximas(:latitude, :longitude, :limite)",

@@ -11,14 +11,9 @@ DROP PROCEDURE IF EXISTS sp_filtrar_trilhas;
 DROP PROCEDURE IF EXISTS sp_medias_trilhas;
 DROP PROCEDURE IF EXISTS sp_avaliacoes_trilha;
 DROP PROCEDURE IF EXISTS sp_historico_usuario;
-DROP PROCEDURE IF EXISTS sp_checkpoints_validos;
 DROP PROCEDURE IF EXISTS sp_checkpoints_trilha;
 DROP PROCEDURE IF EXISTS sp_primeiro_checkpoint_valido;
-DROP PROCEDURE IF EXISTS sp_trilhas_evento;
 DROP PROCEDURE IF EXISTS sp_eventos_por_trilha;
-DROP PROCEDURE IF EXISTS sp_eventos_por_usuario;
-DROP PROCEDURE IF EXISTS sp_participantes_evento;
-DROP PROCEDURE IF EXISTS sp_comentarios_evento;
 DROP PROCEDURE IF EXISTS sp_contar_participantes_evento;
 DROP PROCEDURE IF EXISTS sp_detalhes_eventos;
 
@@ -93,15 +88,6 @@ BEGIN
      ORDER BY h.dataRealizacao DESC, h.idHistorico DESC;
 END$$
 
-CREATE PROCEDURE sp_checkpoints_validos()
-BEGIN
-    SELECT idCheckpoint, latitude, longitude, horario, idTrilha
-      FROM checkpoint
-     WHERE latitude BETWEEN -90 AND 90 AND longitude BETWEEN -180 AND 180
-       AND NOT (latitude = 0 AND longitude = 0)
-     ORDER BY idCheckpoint;
-END$$
-
 CREATE PROCEDURE sp_checkpoints_trilha(IN p_id_trilha INT)
 BEGIN
     SELECT idCheckpoint, latitude, longitude, horario, idTrilha
@@ -121,11 +107,6 @@ BEGIN
      LIMIT 1;
 END$$
 
-CREATE PROCEDURE sp_trilhas_evento(IN p_id_evento INT)
-BEGIN
-    SELECT idEvento, idTrilha FROM evento_trilha WHERE idEvento = p_id_evento;
-END$$
-
 CREATE PROCEDURE sp_eventos_por_trilha(IN p_id_trilha INT)
 BEGIN
     SELECT e.idEvento, e.titulo, e.descricao, e.data, e.horarioSaida,
@@ -134,35 +115,6 @@ BEGIN
       JOIN evento_trilha et ON et.idEvento = e.idEvento
      WHERE et.idTrilha = p_id_trilha
      ORDER BY e.data, e.horarioSaida, e.idEvento;
-END$$
-
-CREATE PROCEDURE sp_eventos_por_usuario(IN p_id_usuario INT)
-BEGIN
-    SELECT e.idEvento, e.titulo, e.descricao, e.data, e.horarioSaida,
-           e.imediata, e.vagas, e.tipo, e.latitude, e.longitude, e.idCriador
-      FROM evento e
-      JOIN participante_evento pe ON pe.idEvento = e.idEvento
-     WHERE pe.idUsuario = p_id_usuario
-     ORDER BY e.data DESC, e.horarioSaida DESC, e.idEvento DESC;
-END$$
-
-CREATE PROCEDURE sp_participantes_evento(IN p_id_evento INT)
-BEGIN
-    SELECT pe.idUsuario, pe.idEvento, u.nome
-      FROM participante_evento pe
-      JOIN usuario u ON u.idUsuario = pe.idUsuario
-     WHERE pe.idEvento = p_id_evento
-     ORDER BY u.nome;
-END$$
-
-CREATE PROCEDURE sp_comentarios_evento(IN p_id_evento INT)
-BEGIN
-    SELECT c.idComentario, c.texto, c.dataEnvio, c.idUsuario, c.idEvento,
-           u.nome AS nomeUsuario
-      FROM comentario_evento c
-      JOIN usuario u ON u.idUsuario = c.idUsuario
-     WHERE c.idEvento = p_id_evento
-     ORDER BY c.dataEnvio ASC, c.idComentario ASC;
 END$$
 
 CREATE PROCEDURE sp_contar_participantes_evento(IN p_id_evento INT)

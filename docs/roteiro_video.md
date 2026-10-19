@@ -1,13 +1,13 @@
-﻿# Roteiro de demonstração (até 2 minutos)
+# Roteiro de demonstração — até 2 minutos
 
-A duração máxima é de 120 segundos. Preparar banco com dados de exemplo, frontend e API antes de iniciar a gravação.
+Prepare a API, o frontend, o banco MySQL com procedures e seed, e uma conta de demonstração antes de gravar. Execute as quatro ações nesta ordem:
 
-| Tempo | Demonstração |
+| Tempo | Ação |
 |---|---|
-| 0:00–0:25 | Na tela inicial, buscar uma trilha e aplicar filtros/ordenação disponíveis. |
-| 0:25–0:50 | Abrir a trilha, mostrar mapa, checkpoints e avaliações. |
-| 0:50–1:20 | Abrir expedições, participar de uma com vagas e conferir os participantes. |
-| 1:20–1:50 | Abrir Ranking e Resumo; mostrar os resultados da conta de demonstração. |
-| 1:50–2:00 | Encerrar com a arquitetura cliente-servidor e a URL do README. |
+| 0:00–0:30 | Na Home, buscar uma trilha e aplicar filtro ou ordenação. |
+| 0:30–0:55 | Informar/autorizar coordenadas e exibir trilhas próximas do local. |
+| 0:55–1:25 | Abrir uma expedição com vaga disponível, participar e conferir a lista atualizada. |
+| 1:25–1:55 | Abrir o ranking e o resumo da conta. |
+| 1:55–2:00 | Encerrar. |
 
-Os casos de uso que dependem de procedure devem ser ensaiados contra MySQL com schema e procedures instalados. A arquitetura com Controller por recurso está pendente; não afirmar que a migração em camadas está integralmente concluída.
+As funcionalidades demonstradas são consultas e participação com regra de vagas; não dependem de uma operação CRUD isolada. Faça um ensaio completo com o MySQL ativo antes da gravação.
