@@ -9,11 +9,8 @@ from .comentario_evento_model import ComentarioEvento
 from .evento_model import Evento
 from .evento_trilha_model import EventoTrilha
 from .favorito_model import Favorito
-from .foto_model import Foto
 from .historico_model import HistoricoTrilha
-from .notificacao_model import Notificacao
 from .participante_evento_model import ParticipanteEvento
-from .registro_realizado_model import RegistroRealizado
 from .trilha_model import Trilha
 from .token_recuperacao_model import TokenRecuperacao
 from .usuario_model import Usuario
@@ -28,11 +25,8 @@ __all__ = [
     "Evento",
     "EventoTrilha",
     "Favorito",
-    "Foto",
     "HistoricoTrilha",
-    "Notificacao",
     "ParticipanteEvento",
-    "RegistroRealizado",
     "Trilha",
     "TokenRecuperacao",
     "Usuario",

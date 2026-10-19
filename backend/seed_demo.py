@@ -27,13 +27,10 @@ from models.trilha_model import Trilha
 from models.avaliacao_model import Avaliacao
 from models.favorito_model import Favorito
 from models.checkpoint_model import Checkpoint
-from models.foto_model import Foto
 from models.evento_model import Evento
 from models.evento_trilha_model import EventoTrilha
 from models.participante_evento_model import ParticipanteEvento
-from models.notificacao_model import Notificacao
 from models.historico_model import HistoricoTrilha
-from models.registro_realizado_model import RegistroRealizado
 from utils.auth import hash_senha
 from utils.tempo_estimado import calcular_tempo_estimado_min
 
@@ -190,13 +187,7 @@ def _criar_trilha(dados):
             )
         )
 
-    db.session.add(
-        Foto(
-            url=dados.get("imagemUrl", ""),
-            legenda=f"Vista da {dados['nome']}",
-            idTrilha=trilha.idTrilha,
-        )
-    )
+
 
     db.session.commit()
     return trilha
@@ -366,36 +357,8 @@ def seed():
             db.session.add(historico)
             db.session.flush()
 
-            cps = trilha.idTrilha and Checkpoint.query.filter_by(idTrilha=trilha.idTrilha).limit(2).all()
-            for cp in cps or []:
-                db.session.add(
-                    RegistroRealizado(
-                        latitude=cp.latitude,
-                        longitude=cp.longitude,
-                        horario=datetime.datetime.utcnow(),
-                        observacao="Checkpoint registrado durante a trilha",
-                        idHistorico=historico.idHistorico,
-                    )
-                )
 
-        notificacoes = [
-            (ana, "Sua expedição 'Urca no fim de tarde' tem 1 vaga restante!", eventos_criados[1] if len(eventos_criados) > 1 else None),
-            (joao, "Bruno entrou na sua expedição 'Bonito: 7 Cachoeiras'.", eventos_criados[2] if len(eventos_criados) > 2 else None),
-            (bruno, "Lembrete: Nascer do sol no Pico em 3 dias. Confira o checklist!", eventos_criados[0] if eventos_criados else None),
-        ]
-        if felipe:
-            notificacoes.append((felipe, "Bem-vindo ao TrailUp! Explore trilhas perto de você.", None))
 
-        for usuario, mensagem, evento in notificacoes:
-            db.session.add(
-                Notificacao(
-                    mensagem=mensagem,
-                    dataEnvio=datetime.datetime.utcnow(),
-                    lida=False,
-                    idUsuario=usuario.idUsuario,
-                    idEvento=evento.idEvento if evento else None,
-                )
-            )
 
         db.session.commit()
 
@@ -407,7 +370,6 @@ def seed():
         print(f"  Checkpoints:  {Checkpoint.query.count()}")
         print(f"  Eventos:      {Evento.query.count()}")
         print(f"  Histórico:    {HistoricoTrilha.query.count()}")
-        print(f"  Notificações: {Notificacao.query.count()}")
         print("\nContas demo (senha: demo123):")
         for u in USUARIOS_DEMO:
             print(f"  - {u['email']}")

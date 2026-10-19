@@ -38,9 +38,7 @@ INSERT INTO checkpoint (latitude, longitude, idTrilha)
 SELECT -22.987100, -43.278500, @pedra_bonita_id
 WHERE (SELECT COUNT(*) FROM checkpoint WHERE idTrilha = @pedra_bonita_id) = 3;
 
-INSERT INTO foto (url, legenda, idTrilha)
-SELECT 'https://commons.wikimedia.org/wiki/Special:FilePath/Pedra_Bonita-RJ.jpg',
-       'Vista do topo ao fim da trilha — Lettydornelas, CC BY-SA 3.0; https://commons.wikimedia.org/wiki/File:Pedra_Bonita-RJ.jpg',
+ https://commons.wikimedia.org/wiki/File:Pedra_Bonita-RJ.jpg',
        @pedra_bonita_id
 WHERE NOT EXISTS (SELECT 1 FROM foto WHERE idTrilha = @pedra_bonita_id AND url LIKE '%Pedra_Bonita-RJ.jpg%');
 

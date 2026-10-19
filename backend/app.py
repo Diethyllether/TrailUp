@@ -1,6 +1,4 @@
-import os
-
-from flask import Flask, jsonify, request, send_file
+from flask import Flask, jsonify, request
 from sqlalchemy.exc import SQLAlchemyError
 
 from config import Config
@@ -16,6 +14,7 @@ from routes.avaliacao_routes import avaliacao_bp
 from routes.historico_routes import historico_bp
 from routes.checklist_routes import checklist_bp
 from routes.denuncia_routes import denuncia_bp
+from routes.termo_routes import termo_bp
 from utils.excecoes import ErroDeDominio
 
 
@@ -37,17 +36,10 @@ def create_app():
         checklist_bp,
         denuncia_bp,
         relatorio_bp,
+        termo_bp,
     ):
-        app.register_blueprint(blueprint, url_prefix="/api")
-
-    @app.get("/termo-consentimento")
-    def consent_term():
-        termo_path = os.path.join(
-            os.path.dirname(app.root_path), "docs", "TermoDeConsentimentoTrailUp.pdf"
-        )
-        if not os.path.isfile(termo_path):
-            return jsonify(error="PDF do termo de consentimento ainda não foi disponibilizado."), 404
-        return send_file(termo_path, mimetype="application/pdf", as_attachment=False)
+        prefix = "" if blueprint is termo_bp else "/api"
+        app.register_blueprint(blueprint, url_prefix=prefix)
 
     @app.after_request
     def api_cors(response):
