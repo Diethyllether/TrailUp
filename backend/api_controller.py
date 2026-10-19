@@ -165,7 +165,7 @@ def create_event():
     data = request.get_json(silent=True) or {}
     try:
         day, time = data.get("data"), data.get("horario")
-        payload = {"titulo": data.get("titulo", "").strip(), "descricao": data.get("descricao"), "data": datetime.strptime(day, "%Y-%m-%d").date() if day else None, "horarioSaida": datetime.strptime(f"{day} {time}", "%Y-%m-%d %H:%M") if day and time else None, "imediata": bool(data.get("imediata")), "vagas": int(data["vagas"]) if data.get("vagas") else None, "tipo": data.get("tipo", "GRUPO"), "trilhas": [int(data["idTrilha"])] if data.get("idTrilha") else []}
+        payload = {"titulo": data.get("titulo", "").strip(), "descricao": data.get("descricao"), "data": datetime.strptime(day, "%Y-%m-%d").date() if day else None, "horarioSaida": datetime.strptime(f"{day} {time}", "%Y-%m-%d %H:%M") if day and time else None, "imediata": bool(data.get("imediata")), "vagas": int(data["vagas"]) if data.get("vagas") not in (None, "") else None, "tipo": data.get("tipo", "GRUPO"), "trilhas": [int(data["idTrilha"])] if data.get("idTrilha") else []}
         event = events.criar(session["id_usuario"], payload)
         return jsonify(event=events.to_dict_completo(event)), 201
     except (ValueError, KeyError, TypeError) as error:
@@ -281,7 +281,15 @@ def manage_event(event_id):
         if "data" in data:
             payload["data"] = date.fromisoformat(data["data"]) if data["data"] else None
         if "horario" in data:
-            payload["horarioSaida"] = datetime.strptime(f"{data.get('data', '')} {data['horario']}", "%Y-%m-%d %H:%M") if data.get("data") and data["horario"] else None
+            data_evento = payload.get("data")
+            if data_evento is None and "data" not in data:
+                data_evento = events.buscar_por_id(event_id).data
+            horario = data["horario"]
+            payload["horarioSaida"] = (
+                datetime.combine(data_evento, datetime.strptime(horario, "%H:%M").time())
+                if data_evento and horario
+                else None
+            )
         for key in ("titulo", "descricao", "imediata", "vagas", "tipo"):
             if key in data:
                 payload[key] = (int(data[key]) if key == "vagas" and data[key] not in (None, "") else None) if key == "vagas" else data[key]

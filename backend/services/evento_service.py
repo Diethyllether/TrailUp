@@ -62,6 +62,9 @@ class EventoService:
             raise ValueError("titulo e tipo são obrigatórios")
         if dados["tipo"] not in ("INDIVIDUAL", "GRUPO"):
             raise ValueError("tipo deve ser INDIVIDUAL ou GRUPO")
+        vagas = dados.get("vagas")
+        if vagas is not None and int(vagas) < 1:
+            raise ValueError("vagas deve ser maior que zero")
 
         latitude = dados.get("latitude")
         longitude = dados.get("longitude")
