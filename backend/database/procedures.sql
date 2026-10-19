@@ -5,6 +5,7 @@ DROP PROCEDURE IF EXISTS sp_resumo_usuario;
 DROP PROCEDURE IF EXISTS sp_ranking_usuarios;
 DROP PROCEDURE IF EXISTS sp_favoritos_usuario;
 DROP PROCEDURE IF EXISTS sp_eventos_ativos;
+DROP PROCEDURE IF EXISTS sp_checklist_usuario;
 
 DELIMITER $$
 
@@ -250,6 +251,19 @@ BEGIN
         e.data ASC,
         e.horarioSaida ASC,
         e.titulo ASC;
+END$$
+
+CREATE PROCEDURE sp_checklist_usuario(
+    IN p_id_usuario INT,
+    IN p_id_trilha INT
+)
+BEGIN
+    SELECT cu.idChecklistItem, cu.marcado
+      FROM checklist_usuario cu
+      JOIN checklist_item ci ON ci.idChecklistItem = cu.idChecklistItem
+     WHERE cu.idUsuario = p_id_usuario
+       AND ci.idTrilha = p_id_trilha
+     ORDER BY ci.obrigatorio DESC, ci.idChecklistItem ASC;
 END$$
 
 DELIMITER ;

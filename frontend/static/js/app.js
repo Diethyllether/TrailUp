@@ -5,11 +5,6 @@ const API_BASE = (window.TRAILUP_API_URL || 'http://localhost:5000/api').replace
 let user = null;
 
 const escapeHtml = (value = '') => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const checklistStorageKey = trailId => `trailup:checklist:${trailId}`;
-function readChecklistState(trailId) {
-  try { return JSON.parse(localStorage.getItem(checklistStorageKey(trailId)) || '{}'); }
-  catch { return {}; }
-}
 const api = async (path, options = {}) => {
   const response = await fetch(`${API_BASE}${path}`, { credentials: 'include', headers: {'Content-Type':'application/json', ...(options.headers || {})}, ...options });
   const data = await response.json().catch(() => ({}));
@@ -37,10 +32,11 @@ async function home() {
 }
 function authPage(register=false) { const consentUrl=`${API_BASE.replace(/\/api\/?$/,'')}/termo-consentimento`; app.innerHTML = `<section class="section"><div class="container"><form class="panel form-grid" id="auth-form"><h1>${register?'Criar conta':'Entrar'}</h1>${register?'<label>Nome<input name="nome" required maxlength="100"></label>':''}<label>E-mail<input type="email" name="email" required></label><label>Senha<input type="password" name="senha" required minlength="6"></label>${register?`<label style="display:flex;align-items:flex-start;gap:10px"><input style="width:auto;margin-top:3px" type="checkbox" name="aceitouTermo" required><span>Confirmo que li o <a href="${consentUrl}" target="_blank" rel="noopener">Termo de Consentimento TrailUp (PDF)</a>.</span></label>`:''}<button class="button primary">${register?'Criar conta':'Entrar'}</button><a href="/?page=${register?'login':'register'}">${register?'Já tem conta? Entrar':'Criar conta'}</a>${!register?'<a href="/?page=forgot-password">Esqueci minha senha</a>':''}</form></div></section>`; }
 async function trailPage(id) {
-  const d=await api(`/trails/${id}`), t=d.trail;
+  const [d, checklistData] = await Promise.all([api(`/trails/${id}`), user ? api(`/trails/${id}/checklist-state`) : Promise.resolve({itens:{}})]);
+  const t=d.trail;
   const points = Array.isArray(d.checkpoints) ? d.checkpoints : [];
   const reviews = Array.isArray(d.reviews) ? d.reviews : [];
-  const checklistState = readChecklistState(id);
+  const checklistState = checklistData.itens || {};
   app.innerHTML = `<section class="section trail-page"><div class="container">
     <a class="back-link" href="/">← Voltar às trilhas</a>
     <header class="trail-heading"><div><span class="eyebrow">TRILHA</span><h1>${escapeHtml(t.nome)}</h1>
@@ -50,7 +46,7 @@ async function trailPage(id) {
     <section class="trail-section"><div class="section-header"><div><span class="eyebrow">PERCURSO</span><h2>Mapa e checkpoints</h2></div><span class="muted">${points.length} ponto(s)</span></div>
       ${points.length ? `<div id="trail-map" class="map" aria-label="Mapa do percurso com checkpoints conectados"><div class="map-message" id="trail-map-message">Carregando mapa…</div></div><ol class="checkpoint-list">${points.map((point, index) => `<li><span class="checkpoint-number">${index + 1}</span><span><strong>${index === 0 ? 'Início' : index === points.length - 1 ? 'Fim' : `Checkpoint ${index + 1}`}</strong><small>${Number(point.latitude).toFixed(5)}, ${Number(point.longitude).toFixed(5)}</small></span></li>`).join('')}</ol>` : '<div class="map-placeholder">Esta trilha ainda não tem checkpoints cadastrados.</div>'}
     </section>
-    <section class="trail-section"><h2>Checklist de equipamentos</h2><div class="panel form-grid">${(d.checklist||[]).length ? d.checklist.map(item=>`<label style="display:flex;align-items:center;gap:10px"><input style="width:auto" type="checkbox" data-checklist="${item.idChecklistItem}" ${checklistState[item.idChecklistItem]?'checked':''}> ${escapeHtml(item.descricao)} ${item.obrigatorio?'(obrigatório)':''}</label>`).join('') : '<p class="muted">Nenhum equipamento cadastrado para esta trilha.</p>'}<p class="muted">As marcações ficam salvas neste navegador.</p></div></section>
+    <section class="trail-section"><h2>Checklist de equipamentos</h2><div class="panel form-grid">${(d.checklist||[]).length ? d.checklist.map(item=>`<label style="display:flex;align-items:center;gap:10px"><input style="width:auto" type="checkbox" data-checklist="${item.idChecklistItem}" ${user?'':'disabled'} ${checklistState[item.idChecklistItem]?'checked':''}> ${escapeHtml(item.descricao)} ${item.obrigatorio?'(obrigatório)':''}</label>`).join('') : '<p class="muted">Nenhum equipamento cadastrado para esta trilha.</p>'}<p class="muted">${user ? 'Marcações salvas na sua conta.' : 'Entre para salvar as marcações.'}</p></div></section>
     <section class="trail-section reviews-section"><div class="section-header"><div><span class="eyebrow">COMUNIDADE</span><h2>Comentários e avaliações</h2></div><span class="rating-summary">${d.average != null ? `★ ${Number(d.average).toFixed(1)} / 5` : 'Ainda sem notas'}</span></div>
       ${reviews.length ? `<div class="review-list">${reviews.map(review => `<article class="review-card"><div class="review-card-heading"><strong>${escapeHtml(review.nomeUsuario || 'Pessoa trilheira')}</strong><span class="review-rating">★ ${Number(review.nota)}/5</span></div><p>${review.comentario ? escapeHtml(review.comentario) : '<span class="muted">Sem comentário escrito.</span>'}</p>${user?.idUsuario===review.idUsuario?`<button class="button ghost" data-action="edit-review" data-id="${review.idAvaliacao}" data-note="${review.nota}" data-comment="${escapeHtml(review.comentario||'')}">Editar</button> <button class="button danger" data-action="delete-review" data-id="${review.idAvaliacao}">Excluir</button>`:''}</article>`).join('')}</div>` : '<div class="empty review-empty">Ainda não há comentários. Seja a primeira pessoa a avaliar esta trilha.</div>'}
       ${user ? `<form id="review-form" data-id="${id}" class="panel review-form"><h3>Conte como foi sua experiência</h3><label>Nota<select name="nota"><option value="5">5 — Excelente</option><option value="4">4 — Muito boa</option><option value="3">3 — Boa</option><option value="2">2 — Regular</option><option value="1">1 — Difícil</option></select></label><label>Comentário<textarea name="comentario" maxlength="2000" placeholder="Como foi o percurso? Tem alguma dica para a próxima pessoa?" rows="4"></textarea></label><button class="button primary">Publicar avaliação</button></form>` : '<p class="review-signin"><a href="/?page=login">Entre na sua conta</a> para deixar uma avaliação.</p>'}
@@ -117,7 +113,12 @@ app.addEventListener('submit', async e => {
     if(f.matches('.event-comment-form')) { await api(`/events/${f.dataset.id}/comments`,{method:'POST',body:JSON.stringify(d)}); notice('Comentário publicado.','success'); await render(); }
   } catch(err) { notice(err.message,'danger'); }
 });
-app.addEventListener('change', e=>{const box=e.target.closest('[data-checklist]');if(!box)return;try{const id=new URLSearchParams(location.search).get('id');const state=readChecklistState(id);state[box.dataset.checklist]=box.checked;localStorage.setItem(checklistStorageKey(id),JSON.stringify(state));}catch{box.checked=!box.checked;notice('Não foi possível salvar as marcações neste navegador.','danger');}});
+app.addEventListener('change', async e => {
+  const box=e.target.closest('[data-checklist]'); if(!box)return;
+  if(!user){box.checked=!box.checked;notice('Entre para salvar as marcacoes.','info');return;}
+  try { await api(`/checklist/${box.dataset.checklist}`,{method:'PATCH',body:JSON.stringify({marcado:box.checked})}); }
+  catch(err) { box.checked=!box.checked; notice(err.message,'danger'); }
+});
 app.addEventListener('click', async e => {
   const b=e.target.closest('[data-action]'); if(!b)return; const id=b.dataset.id;
   try {

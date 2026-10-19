@@ -3,6 +3,7 @@
 from .avaliacao_model import Avaliacao
 from .checkpoint_model import Checkpoint
 from .checklist_item_model import ChecklistItem
+from .checklist_usuario_model import ChecklistUsuario
 from .denuncia_model import Denuncia
 from .comentario_evento_model import ComentarioEvento
 from .evento_model import Evento
@@ -21,6 +22,7 @@ __all__ = [
     "Avaliacao",
     "Checkpoint",
     "ChecklistItem",
+    "ChecklistUsuario",
     "ComentarioEvento",
     "Denuncia",
     "Evento",

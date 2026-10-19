@@ -1,5 +1,5 @@
 -- Dados de exemplo do TrailUp (MySQL 8+).
--- Execute depois de create_database.sql e, se aplicavel, migration_recursos_comunidade.sql.
+-- Execute depois de create_database.sql e, para bancos existentes, da migration aplicavel.
 -- Script idempotente: trilhas existentes com estes nomes nao sao duplicadas.
 -- A trilha real e a Pedra Bonita, no Parque Nacional da Tijuca (RJ).
 -- Coordenada do inicio: -22.985748, -43.279124 (Rio & Learn).

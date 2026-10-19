@@ -17,6 +17,8 @@ from services.usuario_service import UsuarioService
 from services.usuario.solicitar_recuperacao_senha_service import SolicitarRecuperacaoSenhaService
 from services.usuario.redefinir_senha_service import RedefinirSenhaService
 from services.relatorio_service import RelatorioService
+from services.checklist.consultar_checklist_service import ConsultarChecklistService
+from services.checklist.marcar_item_checklist_service import MarcarItemChecklistService
 
 api_bp = Blueprint("api", __name__)
 users, trails, events = UsuarioService(), TrilhaService(), EventoService()
@@ -311,6 +313,26 @@ def ranking_usuarios():
 def resumo_usuario():
     resumo = relatorios.resumo_usuario(session["id_usuario"])
     return jsonify(item=resumo)
+
+
+@api_bp.get("/trails/<int:trail_id>/checklist-state")
+@authenticated
+def consultar_checklist(trail_id):
+    dados = ConsultarChecklistService().executar(session["id_usuario"], trail_id)
+    return jsonify(**dados)
+
+
+@api_bp.patch("/checklist/<int:item_id>")
+@authenticated
+def marcar_item_checklist(item_id):
+    dados = request.get_json(silent=True) or {}
+    try:
+        item = MarcarItemChecklistService().executar(
+            session["id_usuario"], item_id, dados.get("marcado")
+        )
+        return jsonify(item=item)
+    except ValueError as error:
+        return fail(error)
 
 
 @api_bp.post("/auth/password-reset")
