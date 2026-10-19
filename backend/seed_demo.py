@@ -34,8 +34,8 @@ from models.participante_evento_model import ParticipanteEvento
 from models.notificacao_model import Notificacao
 from models.historico_model import HistoricoTrilha
 from models.registro_realizado_model import RegistroRealizado
-from services.trilha_service import TrilhaService
 from utils.auth import hash_senha
+from utils.tempo_estimado import calcular_tempo_estimado_min
 
 DEMO_SENHA = "demo123"
 
@@ -165,7 +165,7 @@ def _criar_trilha(dados):
     if existente:
         return existente
 
-    tempo = TrilhaService.calcular_tempo_estimado_min(dados["distancia"], dados["dificuldade"])
+    tempo = calcular_tempo_estimado_min(dados["distancia"], dados["dificuldade"])
     trilha = Trilha(
         nome=dados["nome"],
         localizacao=dados["localizacao"],

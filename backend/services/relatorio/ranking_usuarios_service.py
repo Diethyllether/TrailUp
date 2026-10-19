@@ -1,4 +1,5 @@
 from repositories.relatorio_repository import RelatorioRepository
+from utils.excecoes import ErroDeValidacao
 
 
 class RankingUsuariosService:
@@ -9,7 +10,7 @@ class RankingUsuariosService:
         try:
             limite = int(limite)
         except (TypeError, ValueError) as error:
-            raise ValueError("limite deve ser um número inteiro") from error
+            raise ErroDeValidacao("limite deve ser um número inteiro") from error
         if not 1 <= limite <= 100:
-            raise ValueError("limite deve estar entre 1 e 100")
+            raise ErroDeValidacao("limite deve estar entre 1 e 100")
         return self.repository.ranking_usuarios(limite)

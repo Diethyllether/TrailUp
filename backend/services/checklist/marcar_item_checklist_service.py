@@ -1,5 +1,6 @@
 from models.checklist_item_model import ChecklistItem
 from models.checklist_usuario_model import ChecklistUsuario
+from utils.excecoes import ErroDeValidacao, RecursoNaoEncontrado
 
 
 class MarcarItemChecklistService:
@@ -9,18 +10,14 @@ class MarcarItemChecklistService:
 
     def executar(self, id_usuario, id_item, marcado):
         if not isinstance(marcado, bool):
-            raise ValueError("marcado deve ser verdadeiro ou falso")
+            raise ErroDeValidacao("marcado deve ser verdadeiro ou falso")
         if self.modelo_item.buscar_por_id(id_item) is None:
-            raise ValueError("item do checklist não encontrado")
-
+            raise RecursoNaoEncontrado("item do checklist não encontrado")
         registro = self.modelo_usuario.buscar(id_usuario, id_item)
         if registro is None:
             registro = self.modelo_usuario(
-                idUsuario=id_usuario,
-                idChecklistItem=id_item,
-                marcado=marcado,
-            )
-            registro.salvar()
+                idUsuario=id_usuario, idChecklistItem=id_item, marcado=marcado
+            ).salvar()
         else:
             registro.marcado = marcado
             registro.atualizar()
