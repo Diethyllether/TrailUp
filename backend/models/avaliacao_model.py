@@ -1,6 +1,7 @@
 from extensions import db
+from models.crud import CrudMixin
 
-class Avaliacao(db.Model):
+class Avaliacao(CrudMixin, db.Model):
     __tablename__ = "avaliacao"
 
     idAvaliacao = db.Column(db.Integer, primary_key=True, autoincrement=True)

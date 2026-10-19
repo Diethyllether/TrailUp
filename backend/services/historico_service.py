@@ -1,6 +1,8 @@
 import datetime
 
-from models.historico_model import HistoricoTrilha, RegistroRealizado, FotoRegistro
+from models.historico_model import HistoricoTrilha
+from models.registro_realizado_model import RegistroRealizado
+from models.foto_registro_model import FotoRegistro
 from repositories.historico_repository import (
     HistoricoRepository,
     RegistroRealizadoRepository,

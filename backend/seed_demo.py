@@ -30,9 +30,12 @@ from models.avaliacao_model import Avaliacao
 from models.favorito_model import Favorito
 from models.checkpoint_model import Checkpoint
 from models.foto_model import Foto
-from models.evento_model import Evento, EventoTrilha, ParticipanteEvento
+from models.evento_model import Evento
+from models.evento_trilha_model import EventoTrilha
+from models.participante_evento_model import ParticipanteEvento
 from models.notificacao_model import Notificacao
-from models.historico_model import HistoricoTrilha, RegistroRealizado
+from models.historico_model import HistoricoTrilha
+from models.registro_realizado_model import RegistroRealizado
 from services.trilha_service import TrilhaService
 from utils.auth import hash_senha
 

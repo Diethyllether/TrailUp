@@ -1,6 +1,7 @@
 from extensions import db
+from models.crud import CrudMixin
 
-class Denuncia(db.Model):
+class Denuncia(CrudMixin, db.Model):
     __tablename__ = "denuncia"
 
     idDenuncia = db.Column(db.Integer, primary_key=True, autoincrement=True)

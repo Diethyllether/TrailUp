@@ -1,7 +1,8 @@
 from extensions import db
+from models.crud import CrudMixin
 
 
-class ChecklistItem(db.Model):
+class ChecklistItem(CrudMixin, db.Model):
     """Item de equipamento recomendado ou obrigatório para uma trilha."""
 
     __tablename__ = "checklist_item"

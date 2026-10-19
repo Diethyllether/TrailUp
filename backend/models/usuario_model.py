@@ -1,7 +1,8 @@
 from datetime import date
 from extensions import db
+from models.crud import CrudMixin
 
-class Usuario(db.Model):
+class Usuario(CrudMixin, db.Model):
     __tablename__ = "usuario"
 
     idUsuario = db.Column(db.Integer, primary_key=True, autoincrement=True)

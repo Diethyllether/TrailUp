@@ -1,5 +1,8 @@
 from extensions import db
-from models.evento_model import Evento, EventoTrilha, ParticipanteEvento, ComentarioEvento
+from models.evento_model import Evento
+from models.evento_trilha_model import EventoTrilha
+from models.participante_evento_model import ParticipanteEvento
+from models.comentario_evento_model import ComentarioEvento
 from models.usuario_model import Usuario
 from repositories.base_repository import BaseRepository
 

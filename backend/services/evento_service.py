@@ -1,4 +1,5 @@
-from models.evento_model import Evento, ComentarioEvento
+from models.evento_model import Evento
+from models.comentario_evento_model import ComentarioEvento
 from repositories.evento_repository import EventoRepository
 from repositories.checkpoint_repository import CheckpointRepository
 from repositories.usuario_repository import UsuarioRepository

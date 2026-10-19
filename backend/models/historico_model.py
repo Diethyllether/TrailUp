@@ -1,6 +1,7 @@
 from extensions import db
+from models.crud import CrudMixin
 
-class HistoricoTrilha(db.Model):
+class HistoricoTrilha(CrudMixin, db.Model):
     __tablename__ = "historicoTrilha"
 
     idHistorico = db.Column(db.Integer, primary_key=True, autoincrement=True)
@@ -20,40 +21,4 @@ class HistoricoTrilha(db.Model):
             "idUsuario": self.idUsuario,
             "idEvento": self.idEvento,
             "idTrilha": self.idTrilha,
-        }
-
-class RegistroRealizado(db.Model):
-    __tablename__ = "registroRealizado"
-
-    idRegistro = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    latitude = db.Column(db.Float, nullable=True)
-    longitude = db.Column(db.Float, nullable=True)
-    horario = db.Column(db.DateTime, nullable=True)
-    observacao = db.Column(db.Text, nullable=True)
-    idHistorico = db.Column(db.Integer, db.ForeignKey("historicoTrilha.idHistorico"), nullable=False)
-
-    def to_dict(self):
-        return {
-            "idRegistro": self.idRegistro,
-            "latitude": self.latitude,
-            "longitude": self.longitude,
-            "horario": self.horario.isoformat() if self.horario else None,
-            "observacao": self.observacao,
-            "idHistorico": self.idHistorico,
-        }
-
-class FotoRegistro(db.Model):
-    __tablename__ = "fotoRegistro"
-
-    idFotoRegistro = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    url = db.Column(db.String(255), nullable=True)
-    legenda = db.Column(db.String(255), nullable=True)
-    idRegistro = db.Column(db.Integer, db.ForeignKey("registroRealizado.idRegistro"), nullable=False)
-
-    def to_dict(self):
-        return {
-            "idFotoRegistro": self.idFotoRegistro,
-            "url": self.url,
-            "legenda": self.legenda,
-            "idRegistro": self.idRegistro,
         }

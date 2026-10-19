@@ -1,6 +1,7 @@
 from extensions import db
+from models.crud import CrudMixin
 
-class Notificacao(db.Model):
+class Notificacao(CrudMixin, db.Model):
     __tablename__ = "notificacao"
 
     idNotificacao = db.Column(db.Integer, primary_key=True, autoincrement=True)
