@@ -10,4 +10,4 @@ A duração máxima é de 120 segundos. Preparar banco com dados de exemplo, fro
 | 1:20–1:50 | Abrir Ranking e Resumo; mostrar os resultados da conta de demonstração. |
 | 1:50–2:00 | Encerrar com a arquitetura cliente-servidor e a URL do README. |
 
-Os casos de uso que dependem de procedure devem ser ensaiados contra MySQL com schema e procedures instalados. A proximidade ainda é calculada em Python. A arquitetura com Controller por recurso está pendente; não afirmar que a migração em camadas está integralmente concluída.
+Os casos de uso que dependem de procedure devem ser ensaiados contra MySQL com schema e procedures instalados. A arquitetura com Controller por recurso está pendente; não afirmar que a migração em camadas está integralmente concluída.

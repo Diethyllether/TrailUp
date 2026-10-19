@@ -1,5 +1,4 @@
 import unicodedata
-import math
 
 from models.trilha_model import Trilha
 from repositories.trilha_repository import TrilhaRepository
@@ -49,18 +48,12 @@ class TrilhaService:
 
     def proximas(self, latitude, longitude, limite=6):
         trilhas = {t.idTrilha: t for t in self.listar_todos()}
-        def distancia(coord):
-            lat, lon = coord
-            a, b = math.radians(latitude), math.radians(lat)
-            dlat, dlon = b-a, math.radians(lon-longitude)
-            h = math.sin(dlat/2)**2 + math.cos(a)*math.cos(b)*math.sin(dlon/2)**2
-            return 6371 * 2 * math.asin(math.sqrt(h))
-        proximidade = {}
-        for cp in self.repository.pontos_proximos():
-            km = distancia((cp.latitude, cp.longitude))
-            proximidade[cp.idTrilha] = min(km, proximidade.get(cp.idTrilha, km))
-        resultados = [(trilhas[i], round(km, 1)) for i, km in proximidade.items() if i in trilhas]
-        return sorted(resultados, key=lambda item: item[1])[:limite]
+        proximidade = self.repository.trilhas_proximas(latitude, longitude, limite)
+        return [
+            (trilhas[item["idTrilha"]], round(float(item["distanciaKm"]), 1))
+            for item in proximidade
+            if item["idTrilha"] in trilhas
+        ]
         
 
     def buscar(self, nome=None, localizacao=None, dificuldade=None, busca=None):

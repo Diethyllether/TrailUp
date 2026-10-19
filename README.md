@@ -200,7 +200,7 @@ frontend/
 20. O sistema salva as marcações do checklist por usuário no banco de dados.
 ## Arquitetura e evidências
 
-O frontend estático pode ser executado separadamente na porta 8000 e consome a API Flask na porta 5000 por `fetch`. O backend usa Services, Models SQLAlchemy com CRUD Active Record e repositories para consultas especializadas. O caminho atual ainda não está integralmente alinhado à rubrica: as rotas estão concentradas em `backend/api_controller.py`, persistem Services Facade e a consulta de trilhas próximas calcula Haversine no Service.
+O frontend estático pode ser executado separadamente na porta 8000 e consome a API Flask na porta 5000 por `fetch`. O backend usa Services, Models SQLAlchemy com CRUD Active Record e repositories para consultas especializadas. O caminho atual ainda não está integralmente alinhado à rubrica: as rotas estão concentradas em `backend/api_controller.py` e persistem Services Facade.
 
 - [Diagrama das Models existentes](docs/diagrama_de_classes.md)
 - [Fluxogramas](docs/fluxogramas/)
@@ -218,8 +218,9 @@ O frontend estático pode ser executado separadamente na porta 8000 e consome a 
 | `sp_ranking_usuarios` | limite | `RelatorioRepository.ranking_usuarios` |
 | `sp_eventos_ativos` | nenhum | `RelatorioRepository.eventos_ativos` |
 | `sp_checklist_usuario` | id do usuário, id da trilha | `ChecklistRepository.listar_marcados` |
+| `sp_trilhas_proximas` | latitude, longitude, limite | `TrilhaRepository.trilhas_proximas` |
 
-A execução real dessas procedures requer MySQL. `sp_eventos_ativos` e `sp_favoritos_usuario` estão implementadas no Repository, mas ainda não foram confirmadas ligadas a uma tela específica; a busca/proximidade também não percorre todas as procedures previstas pela rubrica.
+A execução real dessas procedures requer MySQL. `sp_eventos_ativos` e `sp_favoritos_usuario` estão implementadas no Repository, mas ainda não foram confirmadas ligadas a uma tela específica. Trilhas próximas agora chamam `sp_trilhas_proximas` pelo Repository; o SQLite usa um fallback local para desenvolvimento.
 
 ### Models e repositories
 

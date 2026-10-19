@@ -1,6 +1,6 @@
 ﻿# Fluxograma — buscar trilhas
 
-> Estado atual: busca textual e filtro simples usam `TrilhaRepository` com ORM. Ordenação/filtros agregados também possuem procedure no MySQL através de `RelatorioRepository`, mas a interface não encaminha essas opções por esse caminho em todos os casos. O cálculo de proximidade segue no `TrilhaService` em Python.
+> Estado atual: busca textual e filtro simples usam `TrilhaRepository` com ORM. Ordenação/filtros agregados também possuem procedure no MySQL através de `RelatorioRepository`, mas a interface não encaminha essas opções por esse caminho em todos os casos. Quando a tela envia coordenadas, a proximidade usa `sp_trilhas_proximas` via `TrilhaRepository`.
 
 ```mermaid
 flowchart LR
@@ -15,4 +15,4 @@ flowchart LR
   I --> A
 ```
 
-A busca não passa hoje por uma classe Controller e não chama `sp_filtrar_trilhas`; registrar essa diferença evita apresentar como concluída uma cadeia que ainda não existe.
+A busca não passa hoje por uma classe Controller e não chama `sp_filtrar_trilhas`; proximidade usa a procedure de intenção `sp_trilhas_proximas`.
