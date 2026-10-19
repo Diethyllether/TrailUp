@@ -1,23 +1,27 @@
-from models.checkpoint_model import Checkpoint
+"""Consultas de geolocalização que dependem de validação ou agregação."""
+
+from sqlalchemy import text
+
+from extensions import db
+
 
 class CheckpointRepository:
-    model = Checkpoint
-
     def listar_por_trilha(self, id_trilha):
-        return Checkpoint.query.filter_by(idTrilha=id_trilha).all()
+        resultado = db.session.execute(
+            text("CALL sp_checkpoints_trilha(:id_trilha)"), {"id_trilha": id_trilha}
+        )
+        try:
+            return [dict(linha) for linha in resultado.mappings().all()]
+        finally:
+            resultado.close()
 
     def primeiro_valido_por_trilha(self, id_trilha):
-        checkpoints = Checkpoint.query.filter_by(idTrilha=id_trilha).order_by(
-            Checkpoint.idCheckpoint.asc()
+        resultado = db.session.execute(
+            text("CALL sp_primeiro_checkpoint_valido(:id_trilha)"),
+            {"id_trilha": id_trilha},
         )
-        for checkpoint in checkpoints:
-            latitude, longitude = checkpoint.latitude, checkpoint.longitude
-            if (
-                latitude is not None
-                and longitude is not None
-                and -90 <= latitude <= 90
-                and -180 <= longitude <= 180
-                and (latitude, longitude) != (0, 0)
-            ):
-                return checkpoint
-        return None
+        try:
+            linhas = [dict(linha) for linha in resultado.mappings().all()]
+            return linhas[0] if linhas else None
+        finally:
+            resultado.close()
