@@ -1,3 +1,7 @@
-"""HTTP controllers are exposed by api_controller.api_bp."""
+"""Pacote reservado para controllers HTTP por recurso.
 
-__all__ = ["WebController", "login_web_obrigatorio", "web_bp"]
+Atualmente, os endpoints ainda são definidos em ``api_controller.py``; este
+pacote não exporta classes que não existem.
+"""
+
+__all__ = []

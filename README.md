@@ -41,6 +41,8 @@ Navegador (frontend) ⇄ API Flask (/api) → Services → Repositories/SQLAlche
 | Redefinir senha com token de uso único | [CRUD] | `POST /auth/password-reset/confirm` | Redefinir senha |
 | Consultar ranking de trilheiros | [Consulta/Repository] | `GET /reports/ranking` | Ranking |
 | Consultar resumo pessoal | [Consulta/Repository] | `GET /reports/summary` | Resumo |
+| Consultar estado do checklist da trilha | [Consulta/Repository] | `GET /trails/<trail_id>/checklist-state` | Detalhe da trilha |
+| Salvar marcação de equipamento | [CRUD] | `PATCH /checklist/<item_id>` | Detalhe da trilha |
 
 O checklist de equipamentos é salvo por usuário no banco de dados. O PDF correto do termo de consentimento ainda depende de ser fornecido para disponibilizar o documento e concluir a validação do cadastro.
 
@@ -195,4 +197,30 @@ frontend/
 17. O sistema deve permitir concluir uma trilha, registrando a data, o tempo e uma avaliação pessoal.
 18. O sistema deve permitir recuperar a senha por meio de telas e do envio de um link.
 19. O sistema deve permitir que o organizador edite ou cancele seus eventos.
-20. O sistema deve salvar as marcações do checklist neste navegador, preservando os itens marcados ao sair da página.
+20. O sistema salva as marcações do checklist por usuário no banco de dados.
+## Arquitetura e evidências
+
+O frontend estático pode ser executado separadamente na porta 8000 e consome a API Flask na porta 5000 por `fetch`. O backend usa Services, Models SQLAlchemy com CRUD Active Record e repositories para consultas especializadas. O caminho atual ainda não está integralmente alinhado à rubrica: as rotas estão concentradas em `backend/api_controller.py`, persistem Services Facade e a consulta de trilhas próximas calcula Haversine no Service.
+
+- [Diagrama das Models existentes](docs/diagrama_de_classes.md)
+- [Fluxogramas](docs/fluxogramas/)
+- [Roteiro dos slides](docs/apresentacao.md)
+- [Roteiro de vídeo de até 2 minutos](docs/roteiro_video.md)
+- Verificador: `python scripts/verificar_arquitetura.py` (atualmente reporta violações; consultar as pendências finais).
+
+### Procedures do banco
+
+| Procedure | Parâmetros | Repository |
+|---|---|---|
+| `sp_trilhas_por_dificuldade` | dificuldade, localização, ordem | `RelatorioRepository.trilhas_ordenadas` |
+| `sp_favoritos_usuario` | id do usuário | `RelatorioRepository.favoritos_usuario` |
+| `sp_resumo_usuario` | id do usuário | `RelatorioRepository.resumo_usuario` |
+| `sp_ranking_usuarios` | limite | `RelatorioRepository.ranking_usuarios` |
+| `sp_eventos_ativos` | nenhum | `RelatorioRepository.eventos_ativos` |
+| `sp_checklist_usuario` | id do usuário, id da trilha | `ChecklistRepository.listar_marcados` |
+
+A execução real dessas procedures requer MySQL. `sp_eventos_ativos` e `sp_favoritos_usuario` estão implementadas no Repository, mas ainda não foram confirmadas ligadas a uma tela específica; a busca/proximidade também não percorre todas as procedures previstas pela rubrica.
+
+### Models e repositories
+
+As entidades registradas estão em `backend/models/`, uma por arquivo, e compartilham `CrudMixin`. `Foto` e `Notificacao` são mantidas porque as tabelas e o seed de demonstração as referenciam, embora não tenham fluxo exposto na API. Os repositories atuais são `TrilhaRepository`, `EventoRepository`, `CheckpointRepository`, `RelatorioRepository` e `ChecklistRepository`; alguns ainda usam ORM para consultas filtradas e não procedures.
