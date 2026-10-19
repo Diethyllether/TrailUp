@@ -23,6 +23,8 @@ def imports(tree):
 
 
 for path in python_files(BACKEND / "controllers"):
+    if path.name == "__init__.py":
+        continue
     tree = ast.parse(path.read_text(encoding="utf-8-sig"))
     source = path.read_text(encoding="utf-8-sig")
     if not any(isinstance(node, ast.ClassDef) for node in tree.body):
