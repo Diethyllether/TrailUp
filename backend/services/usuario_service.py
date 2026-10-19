@@ -1,23 +1,19 @@
-import datetime
-import secrets
 
-from repositories.usuario_repository import UsuarioRepository
+from models.usuario_model import Usuario
 from services.casos_uso import (
     AtualizarPerfilService,
     CadastrarUsuarioService,
     LoginUsuarioService,
 )
-from utils.auth import hash_senha
 
 class UsuarioService:
     """Facade para fluxos legados; os casos avaliados possuem Services próprios."""
 
-    def __init__(self, repository=None):
-        self.repository = repository or UsuarioRepository()
-        self.cadastrar_service = CadastrarUsuarioService(self.repository)
-        self.login_service = LoginUsuarioService(self.repository)
-        self.atualizar_perfil_service = AtualizarPerfilService(self.repository)
-        self._tokens_recuperacao = {}
+    def __init__(self, modelo_usuario=None):
+        self.modelo_usuario = modelo_usuario or Usuario
+        self.cadastrar_service = CadastrarUsuarioService(self.modelo_usuario)
+        self.login_service = LoginUsuarioService(self.modelo_usuario)
+        self.atualizar_perfil_service = AtualizarPerfilService(self.modelo_usuario)
 
     def cadastrar(self, dados):
         return self.cadastrar_service.executar(dados)
@@ -25,39 +21,11 @@ class UsuarioService:
     def login(self, email, senha):
         return self.login_service.executar(email, senha)
 
-    def solicitar_recuperacao_senha(self, email):
-        usuario = self.repository.buscar_por_email(email)
-        if not usuario:
-            return None
-        token = secrets.token_urlsafe(32)
-        self._tokens_recuperacao[token] = {
-            "idUsuario": usuario.idUsuario,
-            "expira": datetime.datetime.utcnow() + datetime.timedelta(hours=1),
-        }
-        return token
-
-    def redefinir_senha(self, token, nova_senha):
-        info = self._tokens_recuperacao.get(token)
-        if not info or info["expira"] < datetime.datetime.utcnow():
-            raise ValueError("token de recuperação inválido ou expirado")
-
-        usuario = self.repository.buscar_por_id(info["idUsuario"])
-        if not usuario:
-            raise ValueError("usuário não encontrado")
-
-        if not nova_senha or len(nova_senha) < 6:
-            raise ValueError("a nova senha deve ter pelo menos 6 caracteres")
-
-        usuario.senha = hash_senha(nova_senha)
-        self.repository.atualizar()
-        del self._tokens_recuperacao[token]
-        return usuario
-
     def listar_todos(self):
-        return self.repository.listar_todos()
+        return self.modelo_usuario.listar_todos()
 
     def buscar_por_id(self, id_usuario):
-        usuario = self.repository.buscar_por_id(id_usuario)
+        usuario = self.modelo_usuario.buscar_por_id(id_usuario)
         if not usuario:
             raise ValueError("usuário não encontrado")
         return usuario
@@ -67,4 +35,4 @@ class UsuarioService:
 
     def deletar(self, id_usuario):
         usuario = self.buscar_por_id(id_usuario)
-        self.repository.deletar(usuario)
+        usuario.deletar()

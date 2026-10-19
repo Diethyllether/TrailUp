@@ -1,37 +1,25 @@
-*.nix
-.ignore
-.devenv/
-devenv.*
-.android/
-.dart_tool/
-android/
-ios/
-macos/
-windows/
-linux/
-web/
+# Python
+__pycache__/
+*.py[cod]
+*.so
+.Python
 build/
+dist/
+*.egg-info/
+.venv/
+venv/
+env/
+.env
 
-__pycache__
+# Test and tooling caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
 
-# Devenv
-.devenv*
-devenv.local.nix
-devenv.local.yaml
-
-# direnv
-.direnv
-
-# pre-commit
-.pre-commit-config.yaml
-
-# Devenv
-.devenv*
-devenv.local.nix
-devenv.local.yaml
-
-# direnv
-.direnv
-
-# pre-commit
-.pre-commit-config.yaml
+# Editors and operating systems
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

@@ -1,30 +1,39 @@
 import os
 
 from flask import Flask, jsonify, request, send_file
+from sqlalchemy.exc import SQLAlchemyError
 
 from config import Config
 from extensions import db
 import models
 from api_controller import api_bp
+from routes.relatorio_routes import relatorio_bp
+from utils.excecoes import ErroDeDominio
 
 
 def create_app():
     # This process exposes JSON endpoints only. The frontend is hosted separately.
     app = Flask(__name__, static_folder=None)
+    Config.validar()
     app.config.from_object(Config)
     app.url_map.strict_slashes = False
     db.init_app(app)
     app.register_blueprint(api_bp, url_prefix="/api")
+    app.register_blueprint(relatorio_bp, url_prefix="/api")
 
     @app.get("/termo-consentimento")
     def consent_term():
-        termo_path = os.path.join(os.path.dirname(app.root_path), "TermoDeConsentimentoTrailUp.pdf")
+        termo_path = os.path.join(
+            os.path.dirname(app.root_path), "docs", "TermoDeConsentimentoTrailUp.pdf"
+        )
+        if not os.path.isfile(termo_path):
+            return jsonify(error="PDF do termo de consentimento ainda não foi disponibilizado."), 404
         return send_file(termo_path, mimetype="application/pdf", as_attachment=False)
 
     @app.after_request
     def api_cors(response):
         origin = request.headers.get("Origin")
-        allowed_origin = os.environ.get("FRONTEND_ORIGIN", "http://localhost:8000")
+        allowed_origin = Config.FRONTEND_ORIGIN
         if origin == allowed_origin:
             response.headers["Access-Control-Allow-Origin"] = origin
             response.headers["Access-Control-Allow-Credentials"] = "true"
@@ -49,6 +58,16 @@ def create_app():
         db.session.rollback()
         app.logger.exception("API request failed")
         return jsonify(error="Erro interno do servidor"), 500
+
+    @app.errorhandler(ErroDeDominio)
+    def erro_de_dominio(error):
+        return jsonify(error=error.mensagem), error.status_http
+
+    @app.errorhandler(SQLAlchemyError)
+    def erro_de_banco(error):
+        db.session.rollback()
+        app.logger.exception("Falha de persistência na API", exc_info=error)
+        return jsonify(error="Erro ao acessar o banco de dados"), 500
 
     return app
 

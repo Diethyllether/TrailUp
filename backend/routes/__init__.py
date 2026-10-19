@@ -1,0 +1,1 @@
+"""Blueprints organizados por recurso."""

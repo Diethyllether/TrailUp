@@ -1,7 +1,7 @@
 from extensions import db
-from models.usuario_model import Usuario
+from models.crud import CrudMixin
 
-class Evento(db.Model):
+class Evento(CrudMixin, db.Model):
     __tablename__ = "evento"
 
     idEvento = db.Column(db.Integer, primary_key=True, autoincrement=True)
@@ -15,27 +15,6 @@ class Evento(db.Model):
     latitude = db.Column(db.Float, nullable=True)
     longitude = db.Column(db.Float, nullable=True)
     idCriador = db.Column(db.Integer, db.ForeignKey("usuario.idUsuario"), nullable=False)
-
-    def salvar(self):
-        db.session.add(self)
-        db.session.commit()
-        return self
-
-    def atualizar(self):
-        db.session.commit()
-        return self
-
-    def deletar(self):
-        db.session.delete(self)
-        db.session.commit()
-
-    @classmethod
-    def listar_todos(cls):
-        return cls.query.all()
-
-    @classmethod
-    def buscar_por_id(cls, id_evento):
-        return cls.query.get(id_evento)
 
     def to_dict(self):
         return {
@@ -51,37 +30,3 @@ class Evento(db.Model):
             "longitude": self.longitude,
             "idCriador": self.idCriador,
         }
-
-class EventoTrilha(db.Model):
-    __tablename__ = "evento_trilha"
-
-    idEvento = db.Column(db.Integer, db.ForeignKey("evento.idEvento"), primary_key=True)
-    idTrilha = db.Column(db.Integer, db.ForeignKey("trilha.idTrilha"), primary_key=True)
-
-    def to_dict(self):
-        return {"idEvento": self.idEvento, "idTrilha": self.idTrilha}
-
-class ParticipanteEvento(db.Model):
-    __tablename__ = "participante_evento"
-
-    idUsuario = db.Column(db.Integer, db.ForeignKey("usuario.idUsuario"), primary_key=True)
-    idEvento = db.Column(db.Integer, db.ForeignKey("evento.idEvento"), primary_key=True)
-
-    def to_dict(self):
-        return {"idUsuario": self.idUsuario, "idEvento": self.idEvento}
-
-
-class ComentarioEvento(db.Model):
-    __tablename__ = "comentario_evento"
-
-    idComentario = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    texto = db.Column(db.Text, nullable=False)
-    dataEnvio = db.Column(db.DateTime, nullable=False, default=db.func.now())
-    idUsuario = db.Column(db.Integer, db.ForeignKey("usuario.idUsuario"), nullable=False)
-    idEvento = db.Column(db.Integer, db.ForeignKey("evento.idEvento"), nullable=False)
-
-    def to_dict(self):
-        autor = db.session.get(Usuario, self.idUsuario)
-        return {"idComentario": self.idComentario, "texto": self.texto,
-                "dataEnvio": self.dataEnvio.isoformat() if self.dataEnvio else None,
-                "nomeUsuario": autor.nome if autor else "Usuário"}

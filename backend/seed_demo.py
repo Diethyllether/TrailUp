@@ -18,9 +18,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-os.environ.setdefault(
-    "DATABASE_URL", "mysql+pymysql://root:@127.0.0.1:3307/trilhas_db"
-)
+os.environ.setdefault("SECRET_KEY", os.urandom(32).hex())
 
 from app import create_app
 from extensions import db
@@ -30,9 +28,12 @@ from models.avaliacao_model import Avaliacao
 from models.favorito_model import Favorito
 from models.checkpoint_model import Checkpoint
 from models.foto_model import Foto
-from models.evento_model import Evento, EventoTrilha, ParticipanteEvento
+from models.evento_model import Evento
+from models.evento_trilha_model import EventoTrilha
+from models.participante_evento_model import ParticipanteEvento
 from models.notificacao_model import Notificacao
-from models.historico_model import HistoricoTrilha, RegistroRealizado
+from models.historico_model import HistoricoTrilha
+from models.registro_realizado_model import RegistroRealizado
 from services.trilha_service import TrilhaService
 from utils.auth import hash_senha
 
@@ -151,6 +152,8 @@ def _get_or_create_user(nome, email):
         email=email,
         senha=hash_senha(DEMO_SENHA),
         dataCadastro=datetime.date.today(),
+        termoAceitoEm=datetime.datetime.now(),
+        versaoTermo="1.0-demo",
     )
     db.session.add(usuario)
     db.session.commit()

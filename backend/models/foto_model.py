@@ -1,6 +1,7 @@
 from extensions import db
+from models.crud import CrudMixin
 
-class Foto(db.Model):
+class Foto(CrudMixin, db.Model):
     __tablename__ = "foto"
 
     idFoto = db.Column(db.Integer, primary_key=True, autoincrement=True)

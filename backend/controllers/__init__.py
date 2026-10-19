@@ -1,3 +1,5 @@
-"""HTTP controllers are exposed by api_controller.api_bp."""
+"""Controllers HTTP por recurso."""
 
-__all__ = ["WebController", "login_web_obrigatorio", "web_bp"]
+from .relatorio_controller import RelatorioController
+
+__all__ = ["RelatorioController"]

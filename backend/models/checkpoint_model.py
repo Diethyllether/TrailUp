@@ -1,6 +1,7 @@
 from extensions import db
+from models.crud import CrudMixin
 
-class Checkpoint(db.Model):
+class Checkpoint(CrudMixin, db.Model):
     __tablename__ = "checkpoint"
 
     idCheckpoint = db.Column(db.Integer, primary_key=True, autoincrement=True)

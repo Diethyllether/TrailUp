@@ -1,10 +1,12 @@
 from extensions import db
-from models.evento_model import Evento, EventoTrilha, ParticipanteEvento, ComentarioEvento
+from models.evento_model import Evento
+from models.evento_trilha_model import EventoTrilha
+from models.participante_evento_model import ParticipanteEvento
+from models.comentario_evento_model import ComentarioEvento
 from models.usuario_model import Usuario
-from repositories.base_repository import BaseRepository
 
 
-class EventoRepository(BaseRepository):
+class EventoRepository:
     """Acesso especializado a vínculos, participantes e consultas de eventos."""
 
     model = Evento
@@ -13,12 +15,6 @@ class EventoRepository(BaseRepository):
         return Evento.query.filter(
             Evento.latitude.isnot(None), Evento.longitude.isnot(None)
         ).all()
-
-    def vincular_trilha(self, id_evento, id_trilha):
-        vinculo = EventoTrilha(idEvento=id_evento, idTrilha=id_trilha)
-        db.session.add(vinculo)
-        db.session.commit()
-        return vinculo
 
     def listar_trilhas_do_evento(self, id_evento):
         return EventoTrilha.query.filter_by(idEvento=id_evento).all()
@@ -42,24 +38,6 @@ class EventoRepository(BaseRepository):
             .all()
         )
 
-    def buscar_participante(self, id_usuario, id_evento):
-        return ParticipanteEvento.query.filter_by(
-            idUsuario=id_usuario, idEvento=id_evento
-        ).first()
-
-    def adicionar_participante(self, id_usuario, id_evento):
-        participante = ParticipanteEvento(idUsuario=id_usuario, idEvento=id_evento)
-        db.session.add(participante)
-        db.session.commit()
-        return participante
-
-    def remover_participante(self, id_usuario, id_evento):
-        participante = self.buscar_participante(id_usuario, id_evento)
-        if participante:
-            db.session.delete(participante)
-            db.session.commit()
-        return participante
-
     def listar_participantes(self, id_evento):
         return ParticipanteEvento.query.filter_by(idEvento=id_evento).all()
 
@@ -69,10 +47,36 @@ class EventoRepository(BaseRepository):
                 .filter(ComentarioEvento.idEvento == id_evento)
                 .order_by(ComentarioEvento.dataEnvio.asc()).all())
 
-    def criar_comentario(self, comentario):
-        db.session.add(comentario)
-        db.session.commit()
-        return comentario
-
     def contar_participantes(self, id_evento):
         return ParticipanteEvento.query.filter_by(idEvento=id_evento).count()
+
+    def detalhes_em_lote(self, ids_evento):
+        if not ids_evento:
+            return {}
+        vinculos = db.session.query(EventoTrilha).filter(EventoTrilha.idEvento.in_(ids_evento)).all()
+        participantes = (db.session.query(ParticipanteEvento.idEvento, Usuario.nome)
+            .join(Usuario, Usuario.idUsuario == ParticipanteEvento.idUsuario)
+            .filter(ParticipanteEvento.idEvento.in_(ids_evento)).all())
+        comentarios = (db.session.query(ComentarioEvento, Usuario.nome)
+            .join(Usuario, Usuario.idUsuario == ComentarioEvento.idUsuario)
+            .filter(ComentarioEvento.idEvento.in_(ids_evento))
+            .order_by(ComentarioEvento.dataEnvio.asc()).all())
+        criadores = (db.session.query(Evento.idEvento, Usuario.nome)
+            .join(Usuario, Usuario.idUsuario == Evento.idCriador)
+            .filter(Evento.idEvento.in_(ids_evento)).all())
+        dados = {id_evento: {"trilhasIds": [], "participantes": [], "participantesAtuais": 0,
+            "comentarios": [], "nomeCriador": None} for id_evento in ids_evento}
+        for vinculo in vinculos:
+            dados[vinculo.idEvento]["trilhasIds"].append(vinculo.idTrilha)
+        for id_evento, nome in participantes:
+            dados[id_evento]["participantes"].append(nome)
+            dados[id_evento]["participantesAtuais"] += 1
+        for comentario, nome in comentarios:
+            dados[comentario.idEvento]["comentarios"].append({
+                "idComentario": comentario.idComentario, "texto": comentario.texto,
+                "dataEnvio": comentario.dataEnvio.isoformat() if comentario.dataEnvio else None,
+                "nomeUsuario": nome,
+            })
+        for id_evento, nome in criadores:
+            dados[id_evento]["nomeCriador"] = nome
+        return dados

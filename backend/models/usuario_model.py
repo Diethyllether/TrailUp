@@ -1,7 +1,8 @@
-from datetime import date
+from datetime import date, datetime
 from extensions import db
+from models.crud import CrudMixin
 
-class Usuario(db.Model):
+class Usuario(CrudMixin, db.Model):
     __tablename__ = "usuario"
 
     idUsuario = db.Column(db.Integer, primary_key=True, autoincrement=True)
@@ -10,6 +11,8 @@ class Usuario(db.Model):
     senha = db.Column(db.String(255), nullable=False)
     fotoPerfil = db.Column(db.String(255), nullable=True)
     dataCadastro = db.Column(db.Date, default=date.today)
+    termoAceitoEm = db.Column(db.DateTime, nullable=False)
+    versaoTermo = db.Column(db.String(20), nullable=False)
 
     def salvar(self):
         db.session.add(self)
@@ -43,3 +46,7 @@ class Usuario(db.Model):
         if include_senha:
             data["senha"] = self.senha
         return data
+
+    @classmethod
+    def buscar_por_email(cls, email):
+        return cls.query.filter_by(email=email).first()

@@ -1,7 +1,8 @@
 from datetime import date
 from extensions import db
+from models.crud import CrudMixin
 
-class Favorito(db.Model):
+class Favorito(CrudMixin, db.Model):
     __tablename__ = "favorito"
     __table_args__ = (db.UniqueConstraint("idUsuario", "idTrilha", name="uq_favorito"),)
 

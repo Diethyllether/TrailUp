@@ -1,13 +1,9 @@
 from datetime import date, datetime
-from email.message import EmailMessage
 from functools import wraps
-import os
-import smtplib
 
 from flask import Blueprint, jsonify, request, session
 from sqlalchemy.exc import SQLAlchemyError
 
-from config import Config
 from extensions import db
 from services.avaliacao_service import AvaliacaoService
 from services.checklist_service import ChecklistService
@@ -18,12 +14,16 @@ from services.favorito_service import FavoritoService
 from services.historico_service import HistoricoService
 from services.trilha_service import TrilhaService
 from services.usuario_service import UsuarioService
+from services.usuario.solicitar_recuperacao_senha_service import SolicitarRecuperacaoSenhaService
+from services.usuario.redefinir_senha_service import RedefinirSenhaService
+from services.checklist.consultar_checklist_service import ConsultarChecklistService
+from services.checklist.marcar_item_checklist_service import MarcarItemChecklistService
 
 api_bp = Blueprint("api", __name__)
 users, trails, events = UsuarioService(), TrilhaService(), EventoService()
 favorites, ratings = FavoritoService(), AvaliacaoService()
 checkpoints, checklists, history = CheckpointService(), ChecklistService(), HistoricoService()
-reports = DenunciaService()
+denuncias = DenunciaService()
 
 
 def fail(message, status=400):
@@ -67,7 +67,7 @@ def register():
     if data.get("aceitouTermo") is not True:
         return fail("é necessário confirmar a leitura do Termo de Consentimento para criar a conta")
     try:
-        user = users.cadastrar_service.executar({"nome": (data.get("nome") or "").strip(), "email": (data.get("email") or "").strip(), "senha": data.get("senha") or ""})
+        user = users.cadastrar_service.executar({"nome": (data.get("nome") or "").strip(), "email": (data.get("email") or "").strip(), "senha": data.get("senha") or "", "aceitouTermo": data.get("aceitouTermo")})
         session.clear(); session["id_usuario"] = user.idUsuario
         return jsonify(user=user.to_dict()), 201
     except ValueError as error:
@@ -119,12 +119,12 @@ def trail_detail(trail_id):
     try:
         trail = trails.buscar_por_id(trail_id)
         reviews = []
-        for review in ratings.listar_por_trilha(trail_id):
-            author = users.buscar_por_id(review.idUsuario)
-            reviews.append({**review.to_dict(), "nomeUsuario": author.nome if author else "Usuário"})
+        for review, nome_autor in trails.avaliacoes_com_autores(trail_id):
+            reviews.append({**review.to_dict(), "nomeUsuario": nome_autor})
         user_id = session.get("id_usuario")
         favorite = user_id and any(x.idTrilha == trail_id for x in favorites.listar_por_usuario(user_id))
-        return jsonify(trail=trail.to_dict(), checkpoints=[x.to_dict() for x in checkpoints.listar_por_trilha(trail_id)], events=[events.to_dict_completo(x) for x in events.listar_por_trilha(trail_id)], reviews=reviews, checklist=[x.to_dict() for x in checklists.listar_por_trilha(trail_id)], favorite=bool(favorite), average=ratings.media_por_trilha(trail_id))
+        eventos_trilha = events.listar_por_trilha(trail_id)
+        return jsonify(trail=trail.to_dict(), checkpoints=[x.to_dict() for x in checkpoints.listar_por_trilha(trail_id)], events=events.serializar_muitos(eventos_trilha), reviews=reviews, checklist=[x.to_dict() for x in checklists.listar_por_trilha(trail_id)], favorite=bool(favorite), average=ratings.media_por_trilha(trail_id))
     except ValueError as error:
         return fail(error, 404)
 
@@ -152,7 +152,8 @@ def list_favorites():
 
 @api_bp.get("/events")
 def list_events():
-    items = [events.to_dict_completo(x) for x in events.listar_todos()]
+    evento_models = events.listar_todos()
+    items = events.serializar_muitos(evento_models)
     participating = {x.idEvento for x in events.listar_por_usuario(session["id_usuario"])} if session.get("id_usuario") else set()
     return jsonify(items=items, participating=list(participating), trails=[x.to_dict() for x in trails.listar_todos()])
 
@@ -163,7 +164,7 @@ def create_event():
     data = request.get_json(silent=True) or {}
     try:
         day, time = data.get("data"), data.get("horario")
-        payload = {"titulo": data.get("titulo", "").strip(), "descricao": data.get("descricao"), "data": datetime.strptime(day, "%Y-%m-%d").date() if day else None, "horarioSaida": datetime.strptime(f"{day} {time}", "%Y-%m-%d %H:%M") if day and time else None, "imediata": bool(data.get("imediata")), "vagas": int(data["vagas"]) if data.get("vagas") else None, "tipo": data.get("tipo", "GRUPO"), "trilhas": [int(data["idTrilha"])] if data.get("idTrilha") else []}
+        payload = {"titulo": data.get("titulo", "").strip(), "descricao": data.get("descricao"), "data": datetime.strptime(day, "%Y-%m-%d").date() if day else None, "horarioSaida": datetime.strptime(f"{day} {time}", "%Y-%m-%d %H:%M") if day and time else None, "imediata": bool(data.get("imediata")), "vagas": int(data["vagas"]) if data.get("vagas") not in (None, "") else None, "tipo": data.get("tipo", "GRUPO"), "trilhas": [int(data["idTrilha"])] if data.get("idTrilha") else []}
         event = events.criar(session["id_usuario"], payload)
         return jsonify(event=events.to_dict_completo(event)), 201
     except (ValueError, KeyError, TypeError) as error:
@@ -279,7 +280,15 @@ def manage_event(event_id):
         if "data" in data:
             payload["data"] = date.fromisoformat(data["data"]) if data["data"] else None
         if "horario" in data:
-            payload["horarioSaida"] = datetime.strptime(f"{data.get('data', '')} {data['horario']}", "%Y-%m-%d %H:%M") if data.get("data") and data["horario"] else None
+            data_evento = payload.get("data")
+            if data_evento is None and "data" not in data:
+                data_evento = events.buscar_por_id(event_id).data
+            horario = data["horario"]
+            payload["horarioSaida"] = (
+                datetime.combine(data_evento, datetime.strptime(horario, "%H:%M").time())
+                if data_evento and horario
+                else None
+            )
         for key in ("titulo", "descricao", "imediata", "vagas", "tipo"):
             if key in data:
                 payload[key] = (int(data[key]) if key == "vagas" and data[key] not in (None, "") else None) if key == "vagas" else data[key]
@@ -295,49 +304,44 @@ def manage_event(event_id):
 @authenticated
 def create_report():
     try:
-        report = reports.criar(session["id_usuario"], request.get_json(silent=True) or {})
+        report = denuncias.criar(session["id_usuario"], request.get_json(silent=True) or {})
         return jsonify(report=report.to_dict()), 201
     except ValueError as error:
         return fail(error)
 
 
-def send_recovery_email(email, token):
-    host = os.environ.get("SMTP_HOST")
-    if not host:
-        return False
-    message = EmailMessage()
-    message["Subject"] = "Recuperação de senha TrailUp"
-    message["From"] = os.environ.get("SMTP_FROM", os.environ.get("SMTP_USER", "trailup@localhost"))
-    message["To"] = email
-    frontend = os.environ.get("FRONTEND_URL", "http://localhost:8000")
-    message.set_content(f"Para redefinir sua senha, acesse: {frontend}/?page=reset-password&token={token}\nO link expira em 1 hora.")
-    with smtplib.SMTP(host, int(os.environ.get("SMTP_PORT", "587")), timeout=10) as server:
-        server.starttls()
-        if os.environ.get("SMTP_USER"):
-            server.login(os.environ["SMTP_USER"], os.environ.get("SMTP_PASSWORD", ""))
-        server.send_message(message)
-    return True
+@api_bp.get("/trails/<int:trail_id>/checklist-state")
+@authenticated
+def consultar_checklist(trail_id):
+    dados = ConsultarChecklistService().executar(session["id_usuario"], trail_id)
+    return jsonify(**dados)
+
+
+@api_bp.patch("/checklist/<int:item_id>")
+@authenticated
+def marcar_item_checklist(item_id):
+    dados = request.get_json(silent=True) or {}
+    try:
+        item = MarcarItemChecklistService().executar(
+            session["id_usuario"], item_id, dados.get("marcado")
+        )
+        return jsonify(item=item)
+    except ValueError as error:
+        return fail(error)
 
 
 @api_bp.post("/auth/password-reset")
 def request_password_reset():
-    email = (request.get_json(silent=True) or {}).get("email", "").strip()
-    token = users.solicitar_recuperacao_senha(email)
-    if token:
-        try:
-            sent = send_recovery_email(email, token)
-        except (OSError, smtplib.SMTPException) as error:
-            return fail(f"não foi possível enviar o e-mail: {error}", 503)
-        if not sent and Config.DEBUG:
-            return jsonify(message="SMTP não configurado; link disponível apenas em modo de desenvolvimento", resetLink=f"{os.environ.get('FRONTEND_URL', 'http://localhost:8000')}/?page=reset-password&token={token}")
-    return jsonify(message="Se o e-mail estiver cadastrado, enviaremos um link de recuperação.")
+    email = ((request.get_json(silent=True) or {}).get("email") or "").strip()
+    SolicitarRecuperacaoSenhaService().executar(email)
+    return jsonify(message="Se o e-mail estiver cadastrado, enviaremos um link de recuperacao.")
 
 
 @api_bp.post("/auth/password-reset/confirm")
 def confirm_password_reset():
     data = request.get_json(silent=True) or {}
     try:
-        users.redefinir_senha(data.get("token"), data.get("senha", ""))
+        RedefinirSenhaService().executar(data.get("token"), data.get("senha", ""))
         return jsonify(message="Senha redefinida com sucesso.")
     except ValueError as error:
         return fail(error)

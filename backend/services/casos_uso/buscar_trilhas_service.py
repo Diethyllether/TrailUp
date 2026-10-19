@@ -1,6 +1,7 @@
 import unicodedata
 
 from repositories.trilha_repository import TrilhaRepository
+from models.trilha_model import Trilha
 
 def _normalizar_dificuldade(valor):
     if not valor:
@@ -25,4 +26,4 @@ class BuscarTrilhasService:
                 dificuldade=_normalizar_dificuldade(dificuldade),
                 busca=busca,
             )
-        return self.repository.listar_todos()
+        return Trilha.listar_todos()

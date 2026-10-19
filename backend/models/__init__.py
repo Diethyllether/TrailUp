@@ -3,30 +3,37 @@
 from .avaliacao_model import Avaliacao
 from .checkpoint_model import Checkpoint
 from .checklist_item_model import ChecklistItem
+from .checklist_usuario_model import ChecklistUsuario
 from .denuncia_model import Denuncia
-from .evento_model import ComentarioEvento, Evento, EventoTrilha, ParticipanteEvento
+from .comentario_evento_model import ComentarioEvento
+from .evento_model import Evento
+from .evento_trilha_model import EventoTrilha
 from .favorito_model import Favorito
 from .foto_model import Foto
-from .historico_model import FotoRegistro, HistoricoTrilha, RegistroRealizado
+from .historico_model import HistoricoTrilha
 from .notificacao_model import Notificacao
+from .participante_evento_model import ParticipanteEvento
+from .registro_realizado_model import RegistroRealizado
 from .trilha_model import Trilha
+from .token_recuperacao_model import TokenRecuperacao
 from .usuario_model import Usuario
 
 __all__ = [
     "Avaliacao",
     "Checkpoint",
     "ChecklistItem",
+    "ChecklistUsuario",
     "ComentarioEvento",
     "Denuncia",
     "Evento",
     "EventoTrilha",
     "Favorito",
     "Foto",
-    "FotoRegistro",
     "HistoricoTrilha",
     "Notificacao",
     "ParticipanteEvento",
     "RegistroRealizado",
     "Trilha",
+    "TokenRecuperacao",
     "Usuario",
 ]

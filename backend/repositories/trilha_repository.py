@@ -1,10 +1,13 @@
-from sqlalchemy import or_
+import math
+
+from sqlalchemy import or_, text
 from sqlalchemy import func
 
+from extensions import db
+from models.checkpoint_model import Checkpoint
 from models.trilha_model import Trilha
-from repositories.base_repository import BaseRepository
 
-class TrilhaRepository(BaseRepository):
+class TrilhaRepository:
     """Consultas com filtros combinados. CRUD simples permanece na Model."""
 
     model = Trilha
@@ -48,9 +51,46 @@ class TrilhaRepository(BaseRepository):
         # O frontend usa [media, quantidade] para mostrar a nota média no card.
         return {row[0]: (row[1], row[2]) for row in rows}
 
+    def avaliacoes_com_autores(self, id_trilha):
+        from models.avaliacao_model import Avaliacao
+        from models.usuario_model import Usuario
+
+        return (
+            db.session.query(Avaliacao, Usuario.nome)
+            .join(Usuario, Usuario.idUsuario == Avaliacao.idUsuario)
+            .filter(Avaliacao.idTrilha == id_trilha)
+            .order_by(Avaliacao.data.desc(), Avaliacao.idAvaliacao.desc())
+            .all()
+        )
+
     def pontos_proximos(self):
-        from models.checkpoint_model import Checkpoint
         return Checkpoint.query.filter(
             Checkpoint.latitude.between(-90, 90), Checkpoint.longitude.between(-180, 180),
             ~((Checkpoint.latitude == 0) & (Checkpoint.longitude == 0)),
         ).order_by(Checkpoint.idCheckpoint).all()
+
+    def trilhas_proximas(self, latitude, longitude, limite=6):
+        if db.session.get_bind().dialect.name == "mysql":
+            resultado = db.session.execute(
+                text("CALL sp_trilhas_proximas(:latitude, :longitude, :limite)"),
+                {"latitude": latitude, "longitude": longitude, "limite": limite},
+            )
+            try:
+                return [dict(linha) for linha in resultado.mappings().all()]
+            finally:
+                resultado.close()
+
+        pontos = self.pontos_proximos()
+        distances = {}
+        lat0 = math.radians(latitude)
+        for checkpoint in pontos:
+            lat, lon = math.radians(checkpoint.latitude), math.radians(checkpoint.longitude)
+            dlat = lat - lat0
+            dlon = math.radians(checkpoint.longitude - longitude)
+            haversine = math.sin(dlat / 2) ** 2 + math.cos(lat0) * math.cos(lat) * math.sin(dlon / 2) ** 2
+            km = 6371 * 2 * math.asin(math.sqrt(haversine))
+            distances[checkpoint.idTrilha] = min(km, distances.get(checkpoint.idTrilha, km))
+        return [
+            {"idTrilha": trail_id, "distanciaKm": km}
+            for trail_id, km in sorted(distances.items(), key=lambda item: item[1])[:limite]
+        ]

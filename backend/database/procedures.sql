@@ -5,6 +5,8 @@ DROP PROCEDURE IF EXISTS sp_resumo_usuario;
 DROP PROCEDURE IF EXISTS sp_ranking_usuarios;
 DROP PROCEDURE IF EXISTS sp_favoritos_usuario;
 DROP PROCEDURE IF EXISTS sp_eventos_ativos;
+DROP PROCEDURE IF EXISTS sp_checklist_usuario;
+DROP PROCEDURE IF EXISTS sp_trilhas_proximas;
 
 DELIMITER $$
 
@@ -13,7 +15,9 @@ DELIMITER $$
 -- p_dificuldade for NULL. Inclui métricas úteis para os cards web.
 -- ============================================================
 CREATE PROCEDURE sp_trilhas_por_dificuldade(
-    IN p_dificuldade VARCHAR(50)
+    IN p_dificuldade VARCHAR(50),
+    IN p_localizacao VARCHAR(200),
+    IN p_ordem VARCHAR(20)
 )
 BEGIN
     SELECT
@@ -52,13 +56,13 @@ BEGIN
         FROM historicoTrilha
         GROUP BY idTrilha
     ) hist ON hist.idTrilha = t.idTrilha
-    WHERE p_dificuldade IS NULL
-       OR p_dificuldade = ''
-       OR t.dificuldade = p_dificuldade
+    WHERE (p_dificuldade IS NULL OR p_dificuldade = '' OR t.dificuldade = p_dificuldade)
+      AND (p_localizacao IS NULL OR t.localizacao LIKE CONCAT('%', p_localizacao, '%'))
     ORDER BY
-        mediaNota DESC,
-        quantidadeAvaliacoes DESC,
-        quantidadeFavoritos DESC,
+        CASE WHEN p_ordem = 'distancia' THEN t.distancia END ASC,
+        CASE WHEN p_ordem = 'nome' THEN t.nome END ASC,
+        CASE WHEN p_ordem NOT IN ('distancia', 'nome') THEN mediaNota END DESC,
+        CASE WHEN p_ordem NOT IN ('distancia', 'nome') THEN quantidadeAvaliacoes END DESC,
         t.nome ASC;
 END$$
 
@@ -248,6 +252,40 @@ BEGIN
         e.data ASC,
         e.horarioSaida ASC,
         e.titulo ASC;
+END$$
+
+CREATE PROCEDURE sp_checklist_usuario(
+    IN p_id_usuario INT,
+    IN p_id_trilha INT
+)
+BEGIN
+    SELECT cu.idChecklistItem, cu.marcado
+      FROM checklist_usuario cu
+      JOIN checklist_item ci ON ci.idChecklistItem = cu.idChecklistItem
+     WHERE cu.idUsuario = p_id_usuario
+       AND ci.idTrilha = p_id_trilha
+     ORDER BY ci.obrigatorio DESC, ci.idChecklistItem ASC;
+END$$
+
+CREATE PROCEDURE sp_trilhas_proximas(
+    IN p_latitude DOUBLE,
+    IN p_longitude DOUBLE,
+    IN p_limite INT
+)
+BEGIN
+    SELECT cp.idTrilha,
+           MIN(6371 * ACOS(LEAST(1, GREATEST(-1,
+               COS(RADIANS(p_latitude)) * COS(RADIANS(cp.latitude)) *
+               COS(RADIANS(cp.longitude) - RADIANS(p_longitude)) +
+               SIN(RADIANS(p_latitude)) * SIN(RADIANS(cp.latitude))
+           )))) AS distanciaKm
+      FROM checkpoint cp
+     WHERE cp.latitude BETWEEN -90 AND 90
+       AND cp.longitude BETWEEN -180 AND 180
+       AND NOT (cp.latitude = 0 AND cp.longitude = 0)
+     GROUP BY cp.idTrilha
+     ORDER BY distanciaKm ASC, cp.idTrilha ASC
+     LIMIT p_limite;
 END$$
 
 DELIMITER ;

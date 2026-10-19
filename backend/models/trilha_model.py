@@ -1,6 +1,7 @@
 from extensions import db
+from models.crud import CrudMixin
 
-class Trilha(db.Model):
+class Trilha(CrudMixin, db.Model):
     __tablename__ = "trilha"
 
     idTrilha = db.Column(db.Integer, primary_key=True, autoincrement=True)
