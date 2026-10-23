@@ -19,6 +19,10 @@ class ChecklistUsuario(CrudMixin, db.Model):
     def buscar(cls, id_usuario, id_item):
         return db.session.get(cls, (id_usuario, id_item))
 
+    @classmethod
+    def listar_por_usuario(cls, id_usuario):
+        return cls.query.filter_by(idUsuario=id_usuario).all()
+
     def to_dict(self):
         return {
             "idUsuario": self.idUsuario,

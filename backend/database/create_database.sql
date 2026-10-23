@@ -182,3 +182,9 @@ CREATE TABLE IF NOT EXISTS historicoTrilha (
     INDEX idx_historico_usuario (idUsuario), INDEX idx_historico_trilha (idTrilha),
     INDEX idx_historico_evento (idEvento), INDEX idx_historico_data (dataRealizacao)
 ) ENGINE=InnoDB;
+
+CREATE USER 'trailup'@'localhost'
+IDENTIFIED WITH caching_sha2_password BY '';
+
+GRANT SELECT, INSERT, UPDATE, DELETE, EXECUTE
+ON trilhas_db.* TO 'trailup'@'localhost';

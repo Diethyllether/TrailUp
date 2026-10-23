@@ -12,6 +12,10 @@ class ComentarioEvento(CrudMixin, db.Model):
     idUsuario = db.Column(db.Integer, db.ForeignKey("usuario.idUsuario"), nullable=False)
     idEvento = db.Column(db.Integer, db.ForeignKey("evento.idEvento"), nullable=False)
 
+    @classmethod
+    def listar_por_usuario(cls, id_usuario):
+        return cls.query.filter_by(idUsuario=id_usuario).all()
+
     def to_dict(self):
         autor = db.session.get(Usuario, self.idUsuario)
         return {"idComentario": self.idComentario, "texto": self.texto,

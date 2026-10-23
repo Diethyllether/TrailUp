@@ -11,7 +11,7 @@ import { renderizarPaginaFavoritos } from "./favoritos.js";
 import { renderizarPaginaEventos, tratarEnvioEvento, tratarAcoesEvento } from "./eventos.js";
 import { tratarPublicacaoAvaliacao, tratarAcoesAvaliacao } from "./avaliacoes.js";
 import { tratarRegistroHistorico } from "./historico.js";
-import { renderizarPaginaPerfil, tratarAtualizacaoPerfil } from "./perfil.js";
+import { renderizarPaginaPerfil, tratarAtualizacaoPerfil, tratarExportacaoDados } from "./perfil.js";
 import { renderizarPaginaRanking, renderizarPaginaResumo, tratarRelatoProblema } from "./relatorios.js";
 import { tratarMarcacaoChecklist } from "./checklist.js";
 
@@ -109,6 +109,7 @@ async function tratarClique(evento) {
     tratarAcoesDeTrilha,
     tratarAcoesAvaliacao,
     tratarRelatoProblema,
+    tratarExportacaoDados,
   ];
   for (const tratar of tratadores) {
     if (await tratar(evento)) {

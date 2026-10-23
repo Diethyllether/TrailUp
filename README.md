@@ -11,14 +11,14 @@ O **TrailUp** é uma aplicação web para descobrir trilhas, consultar percursos
 
 | Nome | Papel |
 |---|---|
-| Felipe Cornélio Leite | |
-| Miguel Seleme de Azevedo | |
-| Lucca Freitas Leandro | |
-| Pedro da Silva Brum | |
-| Nikolas Ansur Proti Soares | |
-| Miguel Anthony de Oliveira | |
+| Felipe Cornélio Leite | Frontend |
+| Nikolas Ansur Proti Soares | Frontend |
+| Miguel Seleme de Azevedo | Backend |
+| Miguel Anthony de Oliveira | Backend |
+| Lucca Freitas Leandro | BD + Infra |
+| Pedro da Silva Brum | BD + Infra |
 
-## Funcionalidades Implementadas
+## Requisitos
 
 Os itens abaixo correspondem às rotas e telas existentes. Os fluxos que usam procedures precisam de MySQL 8 com `procedures.sql` aplicado.
 
@@ -54,8 +54,33 @@ Os itens abaixo correspondem às rotas e telas existentes. Os fluxos que usam pr
 30. Consultar resumo pessoal — **[Consulta/Repository]** `GET /api/reports/summary` — Resumo.
 31. Consultar checklist salvo — **[Consulta/Repository]** `GET /api/trails/<trail_id>/checklist-state` — Detalhe.
 32. Marcar item do checklist — **[CRUD]** `PATCH /api/checklist/<item_id>` — Detalhe.
+33. Exportar meus dados (portabilidade LGPD) — **[Consulta/Repository]** `GET /api/profile/export` — Perfil.
 
 `[CRUD]` indica Service → Model. `[Consulta/Repository]` indica Service → Repository → procedure MySQL; algumas operações também gravam por Model.
+
+## Funcionalidades
+
+-  O sistema deve permitir buscar trilhas pelo nome ou localização. 
+-  O sistema deve mostrar distância, duração e nível de dificuldade. 
+-  O sistema deve exibir mapa específico para trilhas. 
+-  O sistema deve permitir avaliações e comentários. 
+-  O sistema deve permitir salvar trilhas favoritas. 
+-  O sistema deve fornecer checklist de equipamentos. 
+-  O sistema deve permitir criar eventos para trilhas. 
+-  O sistema deve registrar histórico de trilhas realizadas.
+- Editar/excluir avaliação própria
+- Exibir nota média da trilha (calculada a partir de AVALIACAO)
+- Editar perfil do usuário (nome, email, foto)
+- Listar participantes confirmados de um evento (apenas nome)
+- Ordenar/filtrar trilhas por distância, duração ou nota
+- Comentários em eventos (participantes combinam detalhes)
+- Trilhas próximas.
+- Suporte a bugs, trilhas etc (botão para reportar)
+- Botão “Concluir trilha”: registrar data, tempo e avaliação pessoal.
+- Recuperação de senha: criar telas e envio do link; já existem métodos no serviço de usuários.
+- Editar e cancelar eventos: disponibilizar ao organizador os recursos existentes no backend.
+- Exportar meus dados (baixar um JSON no Perfil).
+
 
 ### Cinco casos de uso e respectivas telas
 
@@ -113,7 +138,7 @@ docs/
 ```
 
 - [Diagrama de classes](docs/diagrama_de_classes.md), em `docs/diagrama_de_classes.md`.
-- Fluxogramas: [buscar trilhas](docs/fluxogramas/buscar_trilhas.md), [ranking](docs/fluxogramas/ranking.md), [participar de expedição](docs/fluxogramas/participar_evento.md) e [criar expedição](docs/fluxogramas/criar_evento.md).
+- Fluxogramas: [buscar trilhas](docs/fluxogramas/buscar_trilhas.md), [ranking](docs/fluxogramas/ranking.md), [participar de expedição](docs/fluxogramas/participar_evento.md), [criar expedição](docs/fluxogramas/criar_evento.md) e [exportar dados](docs/fluxogramas/exportar_dados.md).
 
 ## Banco de dados
 
@@ -164,6 +189,18 @@ Get-Content backend/database/procedures.sql -Raw | mysql -u root -p
 Get-Content backend/database/seed_dados_exemplo.sql -Raw | mysql -u root -p
 ```
 
+O `create_database.sql` também cria o usuário da aplicação e concede as permissões necessárias. O bloco executado é:
+
+```sql
+CREATE USER 'trailup'@'localhost'
+IDENTIFIED WITH caching_sha2_password BY '';
+
+GRANT SELECT, INSERT, UPDATE, DELETE, EXECUTE
+ON trilhas_db.* TO 'trailup'@'localhost';
+```
+
+Configure a mesma senha no `DATABASE_URL` do arquivo `backend/.env` (em branco no exemplo acima) antes de iniciar a aplicação.
+
 Em banco existente, aplique também as migrações `backend/database/migracao_01_termo_checklist_token.sql` e `backend/database/migracao_02_remover_tabelas_sem_fluxo.sql`, conforme o estado do schema.
 
 ## API
@@ -196,6 +233,7 @@ Base local: `http://localhost:5000/api`. As respostas usam JSON e a sessão usa 
 | GET | `/history` | Sim | Consulta histórico. |
 | POST | `/history` | Sim | Registra trilha concluída. |
 | PATCH | `/profile` | Sim | Atualiza perfil. |
+| GET | `/profile/export` | Sim | Exporta os dados do usuário em JSON. |
 | POST | `/reports` | Sim | Registra problema. |
 | GET | `/reports/ranking` | Não | Ranking da comunidade. |
 | GET | `/reports/summary` | Sim | Resumo pessoal. |

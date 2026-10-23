@@ -18,6 +18,10 @@ class Denuncia(CrudMixin, db.Model):
     def listar_por_evento(cls, id_evento):
         return cls.query.filter_by(idEvento=id_evento).all()
 
+    @classmethod
+    def listar_por_denunciante(cls, id_usuario):
+        return cls.query.filter_by(idUsuarioDenunciante=id_usuario).all()
+
     def to_dict(self):
         return {
             "idDenuncia": self.idDenuncia,

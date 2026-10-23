@@ -10,3 +10,9 @@ usuario_bp = Blueprint("usuario", __name__)
 @login_obrigatorio
 def atualizar_perfil():
     return UsuarioController.atualizar_perfil()
+
+
+@usuario_bp.get("/profile/export")
+@login_obrigatorio
+def exportar_dados():
+    return UsuarioController.exportar_dados()

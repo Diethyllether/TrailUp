@@ -16,6 +16,10 @@ class Evento(CrudMixin, db.Model):
     longitude = db.Column(db.Float, nullable=True)
     idCriador = db.Column(db.Integer, db.ForeignKey("usuario.idUsuario"), nullable=False)
 
+    @classmethod
+    def listar_por_criador(cls, id_usuario):
+        return cls.query.filter_by(idCriador=id_usuario).all()
+
     def to_dict(self):
         return {
             "idEvento": self.idEvento,
