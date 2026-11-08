@@ -36,7 +36,7 @@ button, input, select, textarea { font: inherit; }
   border-bottom: 1px solid rgba(61, 184, 97, .12);
   backdrop-filter: blur(14px);
 }
-.brand { font-size: 1.45rem; font-weight: 800; letter-spacing: -.04em; }
+.brand { display: inline-flex; align-items: center; flex: 0 0 auto; }\n.brand img { display: block; width: 164px; height: 42px; object-fit: contain; }
 .brand span { color: var(--green-light); }
 .topbar nav { display: flex; align-items: center; gap: 18px; color: var(--muted); }
 .topbar nav a:hover, .link-button:hover { color: var(--green-light); }
