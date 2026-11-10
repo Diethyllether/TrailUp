@@ -84,13 +84,15 @@ Os itens abaixo correspondem às rotas e telas existentes. Os fluxos que usam pr
 
 ### Cinco casos de uso e respectivas telas
 
-| Caso de uso | Tela | Captura |
-|---|---|---|
-| Buscar e filtrar trilhas | Home | `docs/img/home-busca.png` |
-| Encontrar trilhas próximas | Home | `docs/img/trilhas-proximas.png` |
-| Consultar mapa e checkpoints | Detalhe da trilha | `docs/img/detalhe-trilha.png` |
-| Participar de expedição | Expedições | `docs/img/participar-expedicao.png` |
-| Consultar ranking e resumo | Relatórios | `docs/img/relatorios.png` |
+
+| Nº  | Caso de uso         | Descrição                                                                                                         | Tela                                  | API utilizada                                                                                    |
+| --- | ------------------- | ----------------------------------------------------------------------------------------------------------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| 01  | Descobrir trilhas   | Permite buscar e explorar trilhas, utilizando filtros como nome, dificuldade, distância, duração e avaliação.     | Home                                  | GET /api/trails                                                                                  |
+| 02  | Consultar percurso  | Permite visualizar os detalhes de uma trilha, incluindo seu percurso no mapa e os checkpoints disponíveis.        | Detalhes da trilha                    | GET /api/trails/<trail_id>                                                                       |
+| 03  | Favoritar trilha    | Permite salvar trilhas favoritas para consultá-las posteriormente, além de remover trilhas da lista de favoritos. | Home / Detalhes da trilha / Favoritos | POST /api/trails/<trail_id>/favorite; DELETE /api/trails/<trail_id>/favorite; GET /api/favorites |
+| 04  | Criar expedição     | Permite que o usuário organize uma expedição, vinculando-a a uma trilha e definindo suas informações.             | Expedições                            | POST /api/events                                                                                 |
+| 05  | Participar do grupo | Permite que o usuário visualize expedições disponíveis e solicite sua participação em um grupo.                   | Expedições                            | GET /api/events; POST /api/events/<event_id>/participation                                       |
+
 
 As imagens ainda precisam ser incluídas em `docs/img/`.
 
